@@ -17,10 +17,6 @@ import pdb # Debugger.
 class Scene:
 
     def __init__(self):
-        self.filePath = ".\\"
-        self.fileName = self.filePath + "\\output.scad"
-
-
         # FIXME: Please renamed these to objects, instead of pictures.
         # These data structures represent all of the generation objects.
 
@@ -105,7 +101,7 @@ class Scene:
             self.current_picture.finish()
 
 
-    def generateCode(self):
+    def generateCode(self, fileName):
         self.finishLastPicture()
         
         # List of Strings representing lines of code.
@@ -136,7 +132,7 @@ class Scene:
         # Join the list of strings with a newLine character.
         fileText = "\n".join(output)
 
-        self.sendToFile(self.fileName, fileText)
+        self.sendToFile(fileName, fileText)
 
 
     # Appends a list of strings to the given String[] output object.

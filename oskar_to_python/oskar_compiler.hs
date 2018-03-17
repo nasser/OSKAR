@@ -1,8 +1,10 @@
 import Data.Time
 import Text.Read
+import System.Environment
 
-main = do  
-        contents_io  <- readFile "../oskar_src_files/input.osk"
+main = do
+        [inFile, outFile] <- getArgs
+        contents_io  <- readFile inFile
         --contents_io  <- readFile "../oskar_src_files/pic7.osk"
         timestamp_io <- getZonedTime
 
@@ -38,7 +40,7 @@ main = do
             
         writeFile "tokens.txt" (unlines (tokens_to_debug_words tokens))
         --writeFile "tokens_after_picture.txt" (unlines tokens10)
-        writeFile "../python_to_openscad/output.py" (unlines output)
+        writeFile outFile (unlines output)
         --print tokens
 
 --This seems kind of useless to me.
@@ -628,12 +630,12 @@ parseDrawCommand tokens = (Nothing, tokens)
 -- Converts an Abstract Syntax tree into a python file in the OSKAR Abstract python generation script.
 generatePython :: AST -> String -> [String]
 generatePython AST {ast_pictures=pictures, ast_drawings=drawCommands, ast_functions=functions} header =
-    let footer = "\n# Generate Code in a Render Language\nscene.generateCode()":[]
+    let footer = "\n# Generate Code in a Render Language\n# scene.generateCode()":[]
         accum1 = generateList drawCommands generateDrawCommand footer
         accum2 = generateList pictures     generatePicture ("":accum1)
         accum3 = generateList functions    generateFunction(("# " ++(show (length(functions)))++ " functions parsed.\n"):accum2)
     in  header :
-        "from pythonGenerator import *\n":
+        "from python_to_openscad.pythonGenerator import *\n":
         "# Global Variables\n" :
         --"Global_t = 0\n" ++
         "scene = Scene()\n":
