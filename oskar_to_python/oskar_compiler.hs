@@ -178,6 +178,7 @@ data Picture =  Picture { picture_name       :: String
                         ,picture_basis      :: String      -- The Name of a lower level Picture definition that will be used to form this picture.
                         ,picture_transforms :: [Transform] -- The transforms in order that will be applied to the basis picture for each iteration.
                         ,picture_iterations :: Iteration   -- An iteration object to control the looping.
+                        ,picture_is_anonymous :: Bool
                        } |
                 Direct_Picture(String, String)
                 -- A picture may be directly defined in terms of an expression string, for instance with
@@ -324,14 +325,16 @@ parseAnonymousPicture name args basis_name (("[":rt):rest) pictures index =
                                                    picture_arguments  = args,
                                                    picture_basis      = basis_name,
                                                    picture_transforms = transforms,
-                                                   picture_iterations = iterations
+                                                   picture_iterations = iterations,
+                                                   picture_is_anonymous = (index /= 0)
                                                    }):pictures)
                                         (index + 1)
             otherwise                -> ((Picture {picture_name       = name,
                                                    picture_arguments  = args,
                                                    picture_basis      = basis_name,
                                                    picture_transforms = transforms,
-                                                   picture_iterations = iterations
+                                                   picture_iterations = iterations,
+                                                   picture_is_anonymous = (index /= 0)
                                                    }):pictures,
                                         tokens_after_picture)
         where anon_name = name ++ "_" ++ (show index)
@@ -642,6 +645,7 @@ generatePicture Picture { picture_name       = name
                          ,picture_basis      = basis
                          ,picture_transforms = transforms
                          ,picture_iterations = iterations
+                         ,picture_is_anonymous = is_anon
                         } =
                 let indent = ""
                 in
@@ -651,7 +655,7 @@ generatePicture Picture { picture_name       = name
                     generateArguments args ++
                     generateIteration iterations "   " ++
                     --indent ++ "pushState()\n" ++
-
+                    generateAnonymous is_anon ++
                      --Note: We could put a reverse(transforms) here to put the transforms in last to first order.
                      -- I like the way they are defined in OSKAR, because it is the order of matrix multiplication,
                      -- Which will be more useful to more applications.
@@ -668,6 +672,9 @@ generatePicture (Direct_Picture(name, expression)) =
     -- FIXME: Add arguments if necessary some day.
     -- "scene.addArgument(\""  ++ expression ++ "\")\n"
     
+
+generateAnonymous :: Bool -> String
+generateAnonymous is_anon = "scene.anonymous(" ++ (show is_anon) ++ ")\n"
 
 generateArguments :: [String] -> String
 generateArguments [] = ""

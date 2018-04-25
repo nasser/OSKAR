@@ -93,6 +93,9 @@ class Scene:
 
     def expression(self, txt):
         self.current_picture.expression(txt)
+        
+    def anonymous(self, isAnonymous):
+        self.current_picture.anonymous(isAnonymous)
 
 
     # Complete the definition for the last picture that was defined.
@@ -191,6 +194,7 @@ class Picture:
         self.isDrawCommand   = False
         self.isNormalPicture = False
         self.isDirectPicture = False # Picture Reduction.
+        self.isAnonymous   = False
 
     def make_normal_picture(self):
         self.isNormalPicture = True
@@ -271,8 +275,14 @@ class Picture:
     def basis(self, name):
         self._reversePushTransforms()
         self.color("1", "1", "1", "1")
-        self.text.append(self.indent2 + name + "();")
+        if self.isAnonymous:
+            self.text.append(self.indent2 + name + "(" + ",".join(self.arguments) + ");")
+        else:
+            self.text.append(self.indent2 + name + "();")
 
+    def anonymous(self, isAnonymous):
+        self.isAnonymous = isAnonymous
+        
     # Here we reverse the order of the transforms from the original C*B*A*[] order,
     # which is the order that a person would left multiply matrices.
     # to the funky reverse ordering of OpenSCAD.
