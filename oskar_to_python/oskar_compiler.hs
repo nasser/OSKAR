@@ -39,18 +39,18 @@ lineReconstructor (a:rest) = a : lineReconstructor rest
 -- Splits up an input string into atomic syntactic parts.
 -- Input String, (reading_comment, reading_token)
 tokenizeString :: String -> [[String]]
-tokenizeString input = tokenize input (False, False) ("[File Name]", 1, 1)
+tokenizeString input = tokenize input (False, False, False) ("[File Name]", 1, 1)
 
- -- string to be tokenized, (currently reading a comment, currently reading a token),
+ -- string to be tokenized, (currently reading a line comment, currently reading a multiline comment, currently reading a token),
  -- (Filename, Line number, Column number)
-tokenize :: String -> (Bool, Bool) -> (String, Int, Int) -> [[String]]
+tokenize :: String -> (Bool, Bool, Bool) -> (String, Int, Int) -> [[String]]
 -- base case, return the empty end of list.
-tokenize [] (_, True)  _  = []:[]
-tokenize [] (_, False) _  = []
+tokenize [] (_, _, True)  _  = []:[]
+tokenize [] (_, _, False) _  = []
 -- If we see a new line character and we have been reading a token, then we conclude it with an end of list. (End of String.)
-tokenize ('\n':xs) (_, True) (f, line, _)  = [] : tokenize xs (False, False) (f, line + 1, 1) -- New Line.
+tokenize ('\n':xs) (_, mlc, True) (f, line, _)  = [] : tokenize xs (False, mlc, False) (f, line + 1, 1) -- New Line.
 -- If we are not reading a token and come across a new line, then we just ignore it.
-tokenize ('\n':xs) (_, False) (f, line, _) = tokenize xs (False, False) (f, line + 1, 1)       -- New Line.
+tokenize ('\n':xs) (_, mlc, False) (f, line, _) = tokenize xs (False, mlc, False) (f, line + 1, 1)       -- New Line.
 
 {-|
 --- The following lines of code implement tokenization that generates comment tokens.
@@ -67,104 +67,107 @@ tokenize ('#':xs) (_, False)  = let rest_of_comment:rest_of_tokens = tokenize xs
 
 -- The Following lines implement tokenization that completely ignores comments.
 -- FIXME: Perhaps I should make comment peeling its own function.
-tokenize (x:xs)   (True, _)  (f, line, col) = tokenize xs (True, False)        (f, line, col + 1)
-tokenize ('#':xs) (_, True)  (f, line, col) = [] : (tokenize xs (True, False)) (f, line, col + 1)
-tokenize ('#':xs) (_, False) (f, line, col) = tokenize xs (True, False)        (f, line, col + 1)
+tokenize (x:xs)   (True, _, _)  (f, line, col) = tokenize xs (True, False, False)        (f, line, col + 1)
+tokenize (x:xs)   (False, True, _)  (f, line, col) = tokenize xs (False, True, False)        (f, line, col + 1)
+tokenize ('#':xs) (_, mlc, True)  (f, line, col) = [] : (tokenize xs (True, mlc, False)) (f, line, col + 1)
+tokenize ('#':xs) (_, mlc, False) (f, line, col) = tokenize xs (True, mlc, False)        (f, line, col + 1)
+
+tokenize ('/':'/':'/':xs) (_, mlc, _)  (f, line, col) = tokenize xs (False, (not mlc), False) (f, line, col + 1)
 
 
 -- For Simple operators and syntactic symbols, we can directly parse them to tokens.
-tokenize (':':':':':':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize (':':':':':':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = ":::":f:(show l):(show c):[]
-tokenize (':':':':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize (':':':':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "::":f:(show l):(show c):[]
-tokenize (':':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize (':':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = ":":f:(show l):(show c):[]
-tokenize ('<':'<':'<':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('<':'<':'<':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "<<<":f:(show l):(show c):[]
-tokenize ('<':'<':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('<':'<':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "<<":f:(show l):(show c):[]
-tokenize (',':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize (',':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = ",":f:(show l):(show c):[]
-tokenize ('=':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('=':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "=":f:(show l):(show c):[]
-tokenize ('*':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('*':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "*":f:(show l):(show c):[]
-tokenize ('/':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('/':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "/":f:(show l):(show c):[]
-tokenize ('+':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('+':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "+":f:(show l):(show c):[]
 {-
 tokenize ('-':xs) (_, t)         | t == False = symbol : tokenize xs (False, False)
                                  | t == True  = [] : symbol : tokenize xs (False, False)
                                  where symbol = "-"
 -}
-tokenize ('(':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('(':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "(":f:(show l):(show c):[]
-tokenize (')':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize (')':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = ")":f:(show l):(show c):[]
-tokenize ('[':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('[':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "[":f:(show l):(show c):[]
-tokenize (']':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize (']':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "]":f:(show l):(show c):[]
-tokenize ('{':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('{':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "{":f:(show l):(show c):[]
-tokenize ('}':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('}':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "}":f:(show l):(show c):[]
-tokenize ('@':xs) (_, t) (f,l,c)
-    | t == False = symbol : tokenize xs (False, False)      (f, l, c + 1)
-    | t == True  = [] : symbol : tokenize xs (False, False) (f, l, c + 1)
+tokenize ('@':xs) (_, _, t) (f,l,c)
+    | t == False = symbol : tokenize xs (False, False, False)      (f, l, c + 1)
+    | t == True  = [] : symbol : tokenize xs (False, False, False) (f, l, c + 1)
     where symbol = "@":f:(show l):(show c):[]
 
 
 -- Substitute $ signs for the prefix "Global_"
 -- We need to subtract enough letters for the Global_ to ensure proper column numbers after this point.
-tokenize ('$': xs) (_,t) (f,l,c) = tokenize ('G':'l':'o':'b':'a':'l':'_':xs)(False, t) (f, l, c - 1)
+tokenize ('$': xs) (_,_,t) (f,l,c) = tokenize ('G':'l':'o':'b':'a':'l':'_':xs)(False, False, t) (f, l, c - 1)
 
 -- End tokens with spaces, but otherwise ignore them.
-tokenize (' ':xs) (_, True)  (f,l,c) = [] : tokenize xs (False, False) (f, l, c + 1)
-tokenize (' ':xs) (_, False) (f,l,c) = tokenize xs (False, False)      (f, l, c + 1)
+tokenize (' ':xs) (_, _, True)  (f,l,c) = [] : tokenize xs (False, False, False) (f, l, c + 1)
+tokenize (' ':xs) (_, _, False) (f,l,c) = tokenize xs (False, False, False)      (f, l, c + 1)
 
 -- Everything else are names.
-tokenize (x:xs) (False, _) (f,l,c) = let token:rest_of_tokens = tokenize xs (False, True) (f, l, c + 1)
-                                         line   = show l
-                                         column = show c
-                                     in case token of
-                                         name:rest_of_token ->
-                                             ((x:name):f:(show l):(show c):[]):rest_of_tokens
-                                         [] ->
-                                             ((x:[]):f:(show l):(show c):[]):rest_of_tokens
+tokenize (x:xs) (False, False, _) (f,l,c) = let token:rest_of_tokens = tokenize xs (False, False, True) (f, l, c + 1)
+                                                line   = show l
+                                                column = show c
+                                            in case token of
+                                                name:rest_of_token ->
+                                                    ((x:name):f:(show l):(show c):[]):rest_of_tokens
+                                                [] ->
+                                                    ((x:[]):f:(show l):(show c):[]):rest_of_tokens
 
 
 -- Here we define the data type for the abstract syntax tree and a healthy collection of lower level types.
