@@ -217,6 +217,11 @@ class Picture:
 
         self.text.append(str)
         self.text.append("{")
+        
+        # this might not be the best place for this
+        # but it ensures that Global_t is defined in
+        # each module --nasser
+        self.text.append(self.indent1 + "Global_t = $t;")
 
     # add an arugment name.
     def addArgument(self, arg):
@@ -238,7 +243,6 @@ class Picture:
         # Assuming we always go from 0 to 1 with end steps...
         #step = 1.0 / end # As of 5.15.17, we no longer do this and we use strings now.
 
-        self.text.append(self.indent1 + "Global_t = $t;")
         #self.text.append(self.indent1 + "begin = 0;")
         self.text.append(self.indent1 + "steps = " + str(end) + ";")
         self.text.append(self.indent1 + "step_size = 1.0/steps;")
