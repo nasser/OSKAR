@@ -132,7 +132,7 @@ class Scene:
         last_picture = self.pictures[len(self.pictures) - 1]
         name = last_picture.getName()
         output.append("// Draw the root module.")
-        output.append("translate([0, 0, 0])rotate([-58,-20, -15]) //set POV")
+        # output.append("translate([0, 0, 0])rotate([-58,-20, -15]) //set POV")
         output.append(name + "();")
 
 
@@ -150,8 +150,8 @@ class Scene:
         output.append("//  Compiled on "+ "{:%B %d, %Y}".format(datetime.now()))
         output.append("$fn=130;")
         output.append("$vpr = [0, 0, 0];   // vpr system variable")
-        output.append("$vpd = 6.0;         // vpd system variable")
-        output.append("$vpt = [0, 0, 0];   // vpt system variable")
+        output.append("$vpd = 3.0;         // vpd system variable")
+        output.append("$vpt = [1., 0.55, 0];   // vpt system variable")
         output.append("\n")
 
         output.append("\n".join(
