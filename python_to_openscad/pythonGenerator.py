@@ -30,21 +30,21 @@ class Scene:
 
     def newPicture(self, name):
 
-        self.finishLastPicture()       
+        self.finishLastPicture()
         self.current_picture = Picture(name)
         self.current_picture.make_normal_picture()
         self.pictures.append(self.current_picture)
 
     def newDirectPicture(self, name):
 
-        self.finishLastPicture()       
+        self.finishLastPicture()
         self.current_picture = Picture(name)
         self.current_picture.make_direct_picture()
         self.pictures.append(self.current_picture)
 
 
     def newDrawCommand(self, name):
-        
+
         self.finishLastPicture()
         self.current_picture = Picture(name)
         self.current_picture.make_draw_command()
@@ -87,13 +87,16 @@ class Scene:
     def basis(self, name):
         self.current_picture.basis(name)
 
+    def addBasisArgument(self, name):
+        self.current_picture.addBasisArgument(name)
+
 
     def color(self, r, g, b, a):
         self.current_picture.color(r, g, b, a)
 
     def expression(self, txt):
         self.current_picture.expression(txt)
-        
+
     def anonymous(self, isAnonymous):
         self.current_picture.anonymous(isAnonymous)
 
@@ -110,7 +113,7 @@ class Scene:
 
     def generateCode(self):
         self.finishLastPicture()
-        
+
         # List of Strings representing lines of code.
         output = []
         self.generateHeader(output)
@@ -183,6 +186,8 @@ class Picture:
 
         self.arguments = []
 
+        self.basisArguments = []
+
         # We keep a list of transforms, because OpenSCAD insists on
         # having their transforms specified in funky reverse order.
         self.transforms = []
@@ -217,7 +222,7 @@ class Picture:
 
         self.text.append(str)
         self.text.append("{")
-        
+
         # this might not be the best place for this
         # but it ensures that Global_t is defined in
         # each module --nasser
@@ -269,24 +274,29 @@ class Picture:
         self.transforms.append(self.indent2 + "rotate([" + rx + ", " + ry + ", " + rz + "])")
 
     def color(self, r, g, b, a):
-        
+
         # Avoid cluttering the draw commands.
         if self.isDrawCommand:
             return
 
         self.text.append(self.indent2 + "color([" + r + ", " + g + ", " + b + ", " + a + "])")
 
+    def addBasisArgument(self, name):
+        self.basisArguments.append(name)
+
     def basis(self, name):
         self._reversePushTransforms()
         self.color("1", "1", "1", "1")
         if self.isAnonymous:
             self.text.append(self.indent2 + name + "(" + ",".join(self.arguments) + ");")
+        elif len(self.basisArguments) != 0:
+            self.text.append(self.indent2 + name + "(" + ",".join(self.basisArguments) + ");")
         else:
             self.text.append(self.indent2 + name + "();")
 
     def anonymous(self, isAnonymous):
         self.isAnonymous = isAnonymous
-        
+
     # Here we reverse the order of the transforms from the original C*B*A*[] order,
     # which is the order that a person would left multiply matrices.
     # to the funky reverse ordering of OpenSCAD.
@@ -300,7 +310,7 @@ class Picture:
             self.text.append(self.indent1 + "}")
         self.text.append("}\n")
 
-    # Returns a string representing the OpenSCAD code for 
+    # Returns a string representing the OpenSCAD code for
     # this picture definition.
     def generateCode(self, output):
         output += self.text
@@ -344,7 +354,7 @@ class Function:
     def finish(self):
         return
 
-    # Returns a string representing the OpenSCAD code for 
+    # Returns a string representing the OpenSCAD code for
     # this picture definition.
     # ASSUMPTION: finish() has been called to finish this picture.
     def generateCode(self, output):
@@ -384,7 +394,7 @@ class Function:
                 out += self.expressions[i] + ", "
             out += self.expressions[len(self.expressions) - 1]
             out += "];\n"
-            
+
             output.append(out)
             return
 
@@ -486,14 +496,14 @@ class SubstitutableText:
 
         return output_func
 
-    # Finds the 
+    # Finds the
 
     # if the function is passed as a function reference
 
     # returns the index of the '('.
     # returns -1 if not found.
     def isInsideOtherSubtext(self, other):
-        
+
         str = other.getBody()
 
         # Returns True if the name is found, it is followed by a '('
@@ -508,7 +518,7 @@ class SubstitutableText:
         end_index = name_index + len(self.myName)
         endP_index = end_index
 
-        # These criteria are used to find a call to self.myName() inside 
+        # These criteria are used to find a call to self.myName() inside
         # the body of the other.
         followed_by_leftp = (str[endP_index] == '(')
         preceded_by_space = name_index == 0 or str[name_index - 1] == ' ' or str[name_index - 1] == '\n'
@@ -644,7 +654,7 @@ class SubstitutableText:
 
             # Decrease scope.
             if char == rightP:
-                scope -= 1            
+                scope -= 1
             # Handle parens scope.
             elif char == leftP:
                 scope += 1
@@ -714,7 +724,7 @@ class MacroSubstitutor:
     # new_def is a SubstitutionText object.
     #
     # We map the local variables defined in the pre-existing function's
-    # function signature to the names of pre-existing functions that would have been 
+    # function signature to the names of pre-existing functions that would have been
     # passed in for a language that supports function passing.
     # then may then omit those entries from the function signature, because they
     # have been implicitly passed through via the hard coded substitution.
@@ -742,7 +752,7 @@ class MacroSubstitutor:
 
             #if new_def.getName() == "wallpaper":
             #    pdb.set_trace()
-            
+
             # We iterate through all function calls to func in new_def.
             while True:
 
@@ -847,7 +857,7 @@ class MacroSubstitutor:
 
     # SubstitutionText Object, int[], String[]
     # the initial object that is to be mapped to a substitution,
-    # finds: an array denoting the indices of local arguments that are to be substituted by the 
+    # finds: an array denoting the indices of local arguments that are to be substituted by the
     # cooresponding strings in the replaces array.
 
     # function naming is name_1stPassedFuncName_2ndPassedFuncName_3rdPassedFuncName_etc

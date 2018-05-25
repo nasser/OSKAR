@@ -176,12 +176,13 @@ data AST = AST {ast_pictures :: [Picture]
                ,ast_functions:: [Function]
                } --deriving (Show, Read, Eq)
 
-data Picture =  Picture { picture_name       :: String
-                        ,picture_arguments  :: [String]
-                        ,picture_basis      :: String      -- The Name of a lower level Picture definition that will be used to form this picture.
-                        ,picture_transforms :: [Transform] -- The transforms in order that will be applied to the basis picture for each iteration.
-                        ,picture_iterations :: Iteration   -- An iteration object to control the looping.
-                        ,picture_is_anonymous :: Bool
+data Picture =  Picture { picture_name           :: String
+                        ,picture_arguments       :: [String]
+                        ,picture_basis           :: String      -- The Name of a lower level Picture definition that will be used to form this picture.
+                        ,picture_basis_arguments :: [String]      -- The Name of a lower level Picture definition that will be used to form this picture.
+                        ,picture_transforms      :: [Transform] -- The transforms in order that will be applied to the basis picture for each iteration.
+                        ,picture_iterations      :: Iteration   -- An iteration object to control the looping.
+                        ,picture_is_anonymous    :: Bool
                        } |
                 Direct_Picture(String, String)
                 -- A picture may be directly defined in terms of an expression string, for instance with
@@ -190,7 +191,7 @@ data Picture =  Picture { picture_name       :: String
                 --Direct_Picture { direct_picture_name :: String
                 --        ,direct_picture_expression :: Expression
                 --       }
-                
+
                                           -- cosine  <<  funplot(myTY1)
                                           -- It will be represented by (name, expression)
 
@@ -229,7 +230,7 @@ data DrawCommand =  DrawCommand { drawCommand_iterations  :: Iteration
 
 -- Parse States used to communicate up and down recursive parse function calls.
 -- Name refers to definition variable names. Left_Paren -> '(', Left_Curly -> '{', Done indicates a state of normalcy.
-data ParseState = Name | Left_Paren| Left_Curly | Done deriving (Eq)  
+data ParseState = Name | Left_Paren| Left_Curly | Done deriving (Eq)
 
 
 -- Token String, Filename String, Line number, Column number.
@@ -260,11 +261,11 @@ _parseSyntaxTree :: [[String]] -> [Picture] -> [DrawCommand] -> [Function] -> AS
 -- Handle Empty List.
 _parseSyntaxTree [] pics draws funcs = AST {ast_pictures=pics, ast_drawings=draws, ast_functions=funcs}
 -- Handle Picture definition.
-_parseSyntaxTree ((name:_):(("<<":_):rest)) pictures drawCommands funcs = 
+_parseSyntaxTree ((name:_):(("<<":_):rest)) pictures drawCommands funcs =
     let (picture, rest_of_tokens) = parsePicture name [] rest
     in  _parseSyntaxTree rest_of_tokens (picture ++ pictures) drawCommands funcs
 
---_parseSyntaxTree (tokens@((name:_):("<<<":_):rest)) pictures drawCommands funcs = 
+--_parseSyntaxTree (tokens@((name:_):("<<<":_):rest)) pictures drawCommands funcs =
 --    let (picture, rest_of_tokens) = parsePicture tokens
 --    in  _parseSyntaxTree rest_of_tokens (picture ++ pictures) drawCommands funcs
 -- Picture function.
@@ -280,7 +281,7 @@ _parseSyntaxTree ((name:_):("(":rp):rest) pictures drawCommands funcs =
             in  _parseSyntaxTree rest_of_tokens (picture ++ pictures) drawCommands funcs
 
         --"<<"  -> -- Picture Function / Picture
-        
+
         "::"  -> -- Singular Function Symbol.
             let (function, rest_of_tokens) = parseFunction name (parseExpressionList arguments) Scalar rest1
             in  _parseSyntaxTree rest_of_tokens pictures drawCommands (function:funcs)
@@ -305,8 +306,14 @@ _parseSyntaxTree tokens pictures drawCommands funcs =
 
 -- Parses the front of a sequence of tokens into a picture and the remainder of the token list.
 parsePicture :: String -> [String] -> [[String]] -> ([Picture], [[String]])
-parsePicture name arguments ((basis_name:_):tokens) = 
+parsePicture name arguments ((basis_name:_):tokens) =
     parseAnonymousPicture name arguments basis_name tokens [] 0
+
+
+parseBasisArguments :: [[String]] -> [String]
+parseBasisArguments [] = []
+parseBasisArguments ((",":_):rest) = parseBasisArguments rest
+parseBasisArguments ((s:_):rest) = (s:(parseBasisArguments rest))
 
 -- Labeled name -> argument names -> basis_name -> Tokens -> Pictures Parsed thus far -> index_of_anonymous_function -> (Pictures parsed, [Rest of Tokens])
 parseAnonymousPicture :: String -> [String] -> String -> [[String]] -> [Picture] -> Int -> ([Picture], [[String]])
@@ -327,6 +334,7 @@ parseAnonymousPicture name args basis_name (("[":rt):rest) pictures index =
                                         ((Picture {picture_name       = anon_name,
                                                    picture_arguments  = args,
                                                    picture_basis      = basis_name,
+                                                   picture_basis_arguments      = [],
                                                    picture_transforms = transforms,
                                                    picture_iterations = iterations,
                                                    picture_is_anonymous = (index /= 0)
@@ -335,6 +343,7 @@ parseAnonymousPicture name args basis_name (("[":rt):rest) pictures index =
             otherwise                -> ((Picture {picture_name       = name,
                                                    picture_arguments  = args,
                                                    picture_basis      = basis_name,
+                                                   picture_basis_arguments      = [],
                                                    picture_transforms = transforms,
                                                    picture_iterations = iterations,
                                                    picture_is_anonymous = (index /= 0)
@@ -342,14 +351,28 @@ parseAnonymousPicture name args basis_name (("[":rt):rest) pictures index =
                                         tokens_after_picture)
         where anon_name = name ++ "_" ++ (show index)
 
+
 -- In this case, pictures are defined in terms of other picture functions.
-parseAnonymousPicture name args basis_name (("(":rt2):rest0) pictures index =
-    let (arguments, tokens_after_picture)  = parseBraket (("(":rt2):rest0) "(" ")"
+parseAnonymousPicture name args basis_name (("(":rt):rest) pictures index =
+    let (arguments, tokens_after_picture)  = parseBraket (("(":rt):rest) "(" ")"
+        (tokens, tokens_after_transform) = parseBraket tokens_after_picture "[" "]"
+        (iterations, transform_tokens) = parseIterations tokens
+        (transforms)                   = parseTransforms transform_tokens
         expression = basis_name ++ "(" ++ (tokensToExpression arguments) ++ ")"
+        anon_name = name ++ "_" ++ (show index)
     in
-        -- Note: We are using the second type of picture defined by (name, expression)
-        ([Direct_Picture(name, expression)]
-        , tokens_after_picture)
+        case tokens_after_picture of
+          (("[":rt3):rest1) -> (((Picture {picture_name            = name,
+                                           picture_arguments       = args,
+                                           picture_basis           = basis_name,
+                                           picture_basis_arguments = (parseBasisArguments arguments),
+                                           picture_transforms      = transforms,
+                                           picture_iterations      = iterations,
+                                           picture_is_anonymous    = (index /= 0)
+                                           }):pictures), tokens_after_transform)
+          -- Note: We are using the second type of picture defined by (name, expression)
+          otherwise -> ([Direct_Picture(name, expression)]
+                        , tokens_after_picture)
 
 parseAnonymousPicture name args basis_name ((_:f:l:c:[]):rest) pictures index =
     error ("Picture Parsing has failed, perhaps you are missing a leading parentheses? " ++ debug f l c)
@@ -365,7 +388,7 @@ parseBraket tokens@((first_token:f:l:c:[]):rest_of_tokens) left_braket right_bra
     | (first_token == left_braket) =
         let result = _parseBraket rest_of_tokens left_braket right_braket 1
         in
-            case result of 
+            case result of
                 Nothing -> error ("No Right Parentheses! " ++ debug f l c)
                 Just something -> something
 
@@ -376,7 +399,7 @@ _parseBraket [] _ _ _ = Nothing
 -- Handle left parentheses.
 _parseBraket ((token:rt):rest) left_braket right_braket count
 -- Left Parens.
-    | token == left_braket = 
+    | token == left_braket =
         let result = _parseBraket rest left_braket right_braket (count + 1)
         in
             case result of
@@ -413,7 +436,7 @@ parseFunction name arguments Scalar tokens =
 
 
 -- n-vector-valued function.
-parseFunction name arguments Vector tokens =  
+parseFunction name arguments Vector tokens =
     let (expression_tokens, rest) = parseBraket tokens "[" "]"
         expressions = parseExpressionList expression_tokens
     in (Function { function_name = name, function_arguments = arguments, function_expressions = expressions, function_type = Vector}, rest)
@@ -428,7 +451,7 @@ tokensToExpression ((str:_):rest) = str ++ (tokensToExpression rest)
 -- Tokens in -> (Iteration, The rest of the tokens.)
 parseIterations :: [[String]] -> (Iteration, [[String]])
 -- {i:80}
-parseIterations (("{":_):(variable_name:_):(":":_):(iteration_count_str:f:l:c:[]):("}":_):rest) = 
+parseIterations (("{":_):(variable_name:_):(":":_):(iteration_count_str:f:l:c:[]):("}":_):rest) =
     --let result = readMaybe iteration_count_str
     --in case result of
     --  Nothing -> error ("Iteration count in variable name was not an integer. Note: variable names are not currently supported." ++ debug f l c)
@@ -446,7 +469,7 @@ parseIterations ((str:f:l:c:[]):rest) = error ("Iteration Parse Error on token \
 -- Converts a list of tokens into a list of transforms.
 parseTransforms :: [[String]] -> [Transform]
 parseTransforms [] = []
-parseTransforms ((species:_):tokens) = 
+parseTransforms ((species:_):tokens) =
     let (x, y, z, rest) = parse3List tokens "(" ")"
     in Transform { transform_species=parseTransformSpecies species, transform_x=x, transform_y=y, transform_z=z}:(parseTransforms rest)
 
@@ -525,7 +548,7 @@ parseUntilAtCurrentScopeH ((name:rt):rest) search left_p right_p scope
     | (name /= search) || (scope /= 0) =
         let newScope =
                 -- https://stackoverflow.com/questions/3479116/pattern-matching-variables-in-a-case-statement-in-haskell
-                case () of 
+                case () of
                   ()| name == left_p  -> scope - 1
                     | name == right_p -> scope + 1
                     | otherwise       -> scope
@@ -573,7 +596,7 @@ _parseUntilDefinition tokens@(("<<<": _):rest) = ([], tokens, Name)
 _parseUntilDefinition tokens@(("::": _):rest) = ([], tokens, Name)
 _parseUntilDefinition tokens@((":::": _):rest) = ([], tokens, Name)
 _parseUntilDefinition tokens@(ass_token@(token: _):rest)
-    | state == Done = (ass_token:out, rest, Done)  
+    | state == Done = (ass_token:out, rest, Done)
     | state == Name && token == ")" = ([], tokens, Left_Paren) -- We can just return tokens, since it will include prefix:rest.
     | state == Name && token == "}" = ([], tokens, Left_Curly)
     | state == Name = ([], tokens, Done) -- We have come the function's name token itself.
@@ -604,7 +627,7 @@ parseTransformSpecies other = error ("ERROR: parseTransformSpecies, the token: \
 
 -- Parses the front of a list of tokens
 parseDrawCommand :: [[String]] -> (Maybe DrawCommand, [[String]])
-parseDrawCommand ((name:_):("{":rb):rest) = 
+parseDrawCommand ((name:_):("{":rb):rest) =
     let (iteration, rest1)        = parseIterations (("{":rb):rest)
         (pictures, rest2)  = parseBraket rest1 "[" "]"
     in  (Just DrawCommand { drawCommand_iterations=iteration, drawCommand_pictures=tokens_to_words pictures}, rest2)
@@ -633,7 +656,7 @@ generatePython AST {ast_pictures=pictures, ast_drawings=drawCommands, ast_functi
         "scene = Scene()\n":
         accum3
 
--- Converts a list of arbitrary type to strings and appends it 
+-- Converts a list of arbitrary type to strings and appends it
 -- to the fron of the given input string list.
 -- input list -> conversion function -> accumulation list -> output
 generateList :: [a] -> (a -> String) -> [String] -> [String]
@@ -643,12 +666,13 @@ generateList [] _ accum = accum
 
 
 generatePicture :: Picture -> String
-generatePicture Picture { picture_name       = name
-                         ,picture_arguments  = args
-                         ,picture_basis      = basis
-                         ,picture_transforms = transforms
-                         ,picture_iterations = iterations
-                         ,picture_is_anonymous = is_anon
+generatePicture Picture { picture_name            = name
+                         ,picture_arguments       = args
+                         ,picture_basis           = basis
+                         ,picture_basis_arguments = basis_args
+                         ,picture_transforms      = transforms
+                         ,picture_iterations      = iterations
+                         ,picture_is_anonymous    = is_anon
                         } =
                 let indent = ""
                 in
@@ -663,6 +687,7 @@ generatePicture Picture { picture_name       = name
                      -- I like the way they are defined in OSKAR, because it is the order of matrix multiplication,
                      -- Which will be more useful to more applications.
                     generateTransforms transforms indent ++
+                    generateBasisArguments basis_args ++
                     --indent ++ "basis ++ "()\n" ++
                     "scene.basis(\"" ++ basis ++ "\")" ++
                     --indent ++ "popState()" ++
@@ -674,7 +699,7 @@ generatePicture (Direct_Picture(name, expression)) =
     "scene.expression(\""  ++ expression ++ "\")\n"
     -- FIXME: Add arguments if necessary some day.
     -- "scene.addArgument(\""  ++ expression ++ "\")\n"
-    
+
 
 generateAnonymous :: Bool -> String
 generateAnonymous is_anon = "scene.anonymous(" ++ (show is_anon) ++ ")\n"
@@ -683,6 +708,11 @@ generateArguments :: [String] -> String
 generateArguments [] = ""
 generateArguments (str:rest) = "scene.addArgument(\"" ++ str ++ "\")\n" ++
     generateArguments rest
+
+generateBasisArguments :: [String] -> String
+generateBasisArguments [] = ""
+generateBasisArguments (str:rest) = "scene.addBasisArgument(\"" ++ str ++ "\")\n" ++
+    generateBasisArguments rest
 
 -- Iteration to be generated -> indentation string -> output.
 generateIteration :: Iteration -> String -> String
@@ -699,7 +729,7 @@ generateIteration (Iteration {iteration_variable=var, iteration_begin=begin, ite
     -}
     "scene.iterations(" ++
     "\"" ++ var ++ "\"" ++
-    ", " ++ 
+    ", " ++
     show begin ++
     ", " ++
     show end ++
@@ -731,10 +761,10 @@ generateDrawCommand (DrawCommand { drawCommand_iterations=iterations,
 
 -- function names tokens -> indentation string -> output
 generatePictureCommands :: [String] -> String -> String
-generatePictureCommands (name:",":rest) indent = 
+generatePictureCommands (name:",":rest) indent =
     indent ++ "scene.basis(" ++
     quote name ++ ")\n" ++ (generatePictureCommands rest indent)
-generatePictureCommands (name:[])       indent = 
+generatePictureCommands (name:[])       indent =
     indent ++ "scene.basis(" ++
     quote name ++ ")\n"
 generatePictureCommands [] _ = ""
@@ -750,7 +780,7 @@ generateFunction (Function { function_name=name
         indent2 = ""
         args_string = _argsToString args
         exp_string  =  _argsToString expressions
-        (lb, rb)    = case ftype of 
+        (lb, rb)    = case ftype of
                         Vector -> ("[", "]")
                         Scalar -> ("",  "")
     in
@@ -801,7 +831,7 @@ _expressionsToCommands (exp:rest) =
 _functionTypeToCommand :: Function_Type -> String
 _functionTypeToCommand Scalar = "p.scalar_type()\n"
 _functionTypeToCommand Vector = "p.vector_type()\n"
-    
+
 
 {-
   Utility functions.
