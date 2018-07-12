@@ -1,0 +1,33 @@
+start                   = top_level+
+top_level               = picture_definition
+
+function_definition     = identifier parameters "=" _ expression
+parameters              = "(" _ (parameter ("," _ parameter)* )? ")" _
+parameter               = identifier ("=" _ literal)?
+
+variable_definition     = identifier "=" _ expression
+
+picture_definition      = identifier parameters? "<<" _ picture_set transform_set*
+picture_set             = "[" _ basis num_pics transformation* "]" _
+transform_set           = "[" _ num_pics transformation* "]" _
+basis                   = identifier arguments
+num_pics                = "{" (literal / identifier) "}" _
+transformation          = operator arguments
+
+expression              = (invocation / infix / literal / identifier) semicolon
+infix                   = term (operator term)+
+term                    = ("(" _ expression ")" _) / invocation / literal / identifier
+operator                = ~"[\\+\\*\\/\\-\\@]" _
+invocation              = identifier arguments
+arguments               = "(" _ (expression ("," _ expression)* )? ")" _
+
+literal                 = number
+identifier              = !number symbol _
+number                  = digits _
+symbol                  = ~"[^\s(),#]+"
+digits                  = "-"? ~"[0-9\.]+"
+semicolon               = (";" _)?
+
+_                       = whitespace? comment?
+whitespace              = ~"[\\n\\s]*"
+comment                 = "#" ~"[^\\n]*" whitespace
