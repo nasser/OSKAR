@@ -7,7 +7,9 @@ parameter               = identifier ("=" _ literal)?
 
 variable_definition     = identifier "=" _ expression
 
-picture_definition      = identifier parameters? "<<" _ picture_set transform_set*
+picture_definition      = identifier parameters? "<<" _ picture_component ( csg_operator picture_component )*
+csg_operator            = ("++" / "--" / "&&") _
+picture_component       = (picture_set transform_set*) / (identifier arguments)
 picture_set             = "[" _ basis num_pics transformation* "]" _
 transform_set           = "[" _ num_pics transformation* "]" _
 basis                   = identifier arguments
