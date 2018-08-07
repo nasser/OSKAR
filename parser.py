@@ -61,11 +61,11 @@ with open(sys.argv[2], "w") as f:
         errors = ""
         try:
             parsed = grammar.parse(example_source)
-            # print(example_source)
-            # print(parsed)
             parse_tree = str(OskarVisitor().visit(parsed))
+            print("OK")
         except Exception:
             errors = traceback.format_exc()
+            print("Failed")
         log_file.write("--- source\n")
         log_file.write(example_source)
         log_file.write("\n--- parse tree\n")
