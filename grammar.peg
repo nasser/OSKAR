@@ -16,7 +16,7 @@ basis                   = identifier arguments
 num_pics                = "{" (literal / identifier) "}" _
 transformation          = operator arguments
 
-expression              = (invocation / infix / literal / identifier) semicolon
+expression              = (infix / invocation / literal / identifier) semicolon
 infix                   = term (operator term)+
 term                    = ("(" _ expression ")" _) / invocation / literal / identifier
 operator                = ~"[\\+\\*\\/\\-\\@]" _

@@ -1,0 +1,1 @@
+TrigFunc(arg1, arg2) = sin(arg1*360)+cos(arg2 * 3);

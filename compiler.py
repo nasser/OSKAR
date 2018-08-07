@@ -34,10 +34,15 @@ class OskarVisitor(NodeVisitor):
         return new_children(node, [identifier] if is_empty(default) else [identifier, default])
 
     def visit_parameters(self, node, children):
-        _, _, (parameters,), _, _ = children
-        head, rest = parameters
-        rest = map(lambda r: r.children[2], rest) # how to document what were skipping?
-        return new_children(node, [head, *rest])
+        _, _, parameters, _, _ = children
+        if len(parameters.children) > 1:
+            head, rest = parameters
+            rest = map(lambda r: r.children[2], rest) # how to document what were skipping?
+            return new_children(node, [head, *rest])
+        if len(parameters.children) == 1:
+            return new_children(node, parameters)
+        else:
+            return new_children(node, [])
 
     def visit_expression(self, node, children):
         expression, _ = children
