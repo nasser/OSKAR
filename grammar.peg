@@ -1,5 +1,5 @@
 start                   = top_level+
-top_level               = picture_definition
+top_level               = function_definition / variable_definition / picture_definition
 
 function_definition     = identifier parameters "=" _ expression
 parameters              = "(" _ (parameter ("," _ parameter)* )? ")" _
