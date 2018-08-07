@@ -53,8 +53,22 @@ with open("grammar.peg", "r") as f:
     grammar_source = f.read()
     grammar = Grammar(grammar_source)
 
-with open(sys.argv[1], "r") as f:
-    example_source = f.read().strip()
-    parsed = grammar.parse(example_source)
-    print(example_source)
-    print(parsed)
+with open(sys.argv[2], "w") as f:
+    log_file = f
+    with open(sys.argv[1], "r") as f:
+        example_source = f.read().strip()
+        parse_tree = ""
+        errors = ""
+        try:
+            parsed = grammar.parse(example_source)
+            # print(example_source)
+            # print(parsed)
+            parse_tree = str(OskarVisitor().visit(parsed))
+        except Exception:
+            errors = traceback.format_exc()
+        log_file.write("--- source\n")
+        log_file.write(example_source)
+        log_file.write("\n--- parse tree\n")
+        log_file.write(parse_tree)
+        log_file.write("\n--- errors\n")
+        log_file.write(errors)
