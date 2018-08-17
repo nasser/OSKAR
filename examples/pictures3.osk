@@ -1,8 +1,8 @@
 spun() << [ cube() {10}             # the cube primitive starts in first quadrant
-               + (-.5, -.5,-.5)  # 1. center cube at origin with translation
-               * ( .1,.025, .1)  # 2. scale down to a small, very thin slab
-               @ ( 0 , 35, 0 )  # 3. rotate around y axis, by 35 degrees.
-               + ( .5, .5, .5)  # 4. move cube back to first quadrant position
-               + ( i*.5, 0 , 0 )  # 5. move the cubes to the right to make the row
+               + (-.5  , -.5,-.5)  # 1. center cube at origin with translation
+               * ( .1  ,.025, .1)  # 2. scale down to a small, very thin slab
+               @ (     , 35 ,   )  # 3. rotate around y axis, by 35 degrees.
+               + ( .5  , .5 , .5)  # 4. move cube back to first quadrant position
+               + ( i*.5,    ,   )  # 5. move the cubes to the right to make the row
         ]
         [  {5} + ( 0 , i * .5, 0 ) ]  # 1. move 5 copies of the row up into a grid with the Ty transform.

@@ -21,7 +21,7 @@ infix                   = term (operator term)+
 term                    = ("(" _ expression ")" _) / invocation / literal / identifier
 operator                = ~"[\\+\\*\\/\\-\\@]" _
 invocation              = identifier arguments
-arguments               = "(" _ (expression ("," _ expression)* )? ")" _
+arguments               = "(" _ (expression? ("," _ expression?)* )? ")" _
 
 literal                 = number
 identifier              = !number symbol _
