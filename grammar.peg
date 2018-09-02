@@ -1,35 +1,36 @@
-start                   = top_level+
-top_level               = function_definition / variable_definition / picture_definition
+grammar oskar
+start                   <- top_level+
+top_level               <- function_definition / variable_definition / picture_definition
 
-function_definition     = identifier parameters "=" _ expression
-parameters              = "(" _ (parameter ("," _ parameter)* )? ")" _
-parameter               = identifier ("=" _ literal)?
+function_definition     <- identifier parameters "=" _ expression
+parameters              <- "(" _ (parameter ("," _ parameter)* )? ")" _
+parameter               <- identifier ("=" _ literal)?
 
-variable_definition     = identifier "=" _ expression
+variable_definition     <- identifier "=" _ expression
 
-picture_definition      = identifier parameters? "<<" _ picture_component ( csg_operator picture_component )*
-csg_operator            = ("++" / "--" / "&&") _
-picture_component       = (picture_set transform_set*) / (identifier arguments)
-picture_set             = "[" _ basis num_pics transformation* "]" _
-transform_set           = "[" _ num_pics transformation* "]" _
-basis                   = identifier arguments
-num_pics                = "{" (literal / identifier) "}" _
-transformation          = operator arguments
+picture_definition      <- identifier parameters? "<<" _ picture_component ( csg_operator picture_component )*
+csg_operator            <- ("++" / "--" / "&&") _
+picture_component       <- (picture_set transform_set*) / (identifier arguments)
+picture_set             <- "[" _ basis num_pics transformation* "]" _
+transform_set           <- "[" _ num_pics transformation* "]" _
+basis                   <- identifier arguments
+num_pics                <- "{" (literal / identifier) "}" _
+transformation          <- operator arguments
 
-expression              = (infix / invocation / literal / identifier) semicolon
-infix                   = term (operator term)+
-term                    = ("(" _ expression ")" _) / invocation / literal / identifier
-operator                = ~"[\\+\\*\\/\\-\\@]" _
-invocation              = identifier arguments
-arguments               = "(" _ (expression? ("," _ expression?)* )? ")" _
+expression              <- (infix / invocation / literal / identifier) semicolon
+infix                   <- term (operator term)+
+term                    <- ("(" _ expression ")" _) / invocation / literal / identifier
+operator                <- [\+\*\/\-\@] _
+invocation              <- identifier arguments
+arguments               <- "(" _ (expression? ("," _ expression?)* )? ")" _
 
-literal                 = number
-identifier              = !number symbol _
-number                  = digits _
-symbol                  = ~"[^\s(),#]+"
-digits                  = "-"? ~"[0-9\.]+"
-semicolon               = (";" _)?
+literal                 <- number
+identifier              <- !number symbol _
+number                  <- digits _
+symbol                  <- [^\s(),#]+
+digits                  <- "-"? [0-9\.]+
+semicolon               <- (";" _)?
 
-_                       = whitespace? comment?
-whitespace              = ~"[\\n\\s]*"
-comment                 = "#" ~"[^\\n]*" whitespace
+_                       <- whitespace? comment?
+whitespace              <- [\n\s]*
+comment                 <- "#" [^\n]* whitespace
