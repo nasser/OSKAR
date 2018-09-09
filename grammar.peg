@@ -2,9 +2,9 @@ grammar oskar
 start                   <- top_level+
 top_level               <- function_definition / variable_definition / picture_definition
 
-function_definition     <- identifier parameters "=" _ expression
-parameters              <- "(" _ (parameter ("," _ parameter)* )? ")" _
-parameter               <- identifier ("=" _ literal)?
+function_definition     <- identifier parameters "=" _ expression %function_definition
+parameters              <- "(" _ parameters:(first:parameter rest:("," _ parameter)* )? ")" _ %parameters
+parameter               <- identifier default:("=" _ literal)? %parameter
 
 variable_definition     <- identifier "=" _ expression
 
@@ -17,20 +17,20 @@ basis                   <- identifier arguments
 num_pics                <- "{" (literal / identifier) "}" _
 transformation          <- operator arguments
 
-expression              <- (infix / invocation / literal / identifier) semicolon
-infix                   <- term (operator term)+
+expression              <- expression:(infix / invocation / literal / identifier) semicolon %expression
+infix                   <- lhs:term op:operator rhs:expression %infix
 term                    <- ("(" _ expression ")" _) / invocation / literal / identifier
-operator                <- [\+\*\/\-\@] _
+operator                <- [\+\*\/\-\@] _ %operator
 invocation              <- identifier arguments
 arguments               <- "(" _ (expression? ("," _ expression?)* )? ")" _
 
-literal                 <- number
-identifier              <- !number symbol _
-number                  <- digits _
-symbol                  <- [^\s(),#]+
+literal                 <- number _ %literal
+identifier              <- !number symbol _ %identifier
+number                  <- digits _ %number
+symbol                  <- [^\s(),#=]+
 digits                  <- "-"? [0-9\.]+
 semicolon               <- (";" _)?
 
-_                       <- whitespace? comment?
+_                       <- whitespace? comment? %ignore
 whitespace              <- [\n\s]*
 comment                 <- "#" [^\n]* whitespace
