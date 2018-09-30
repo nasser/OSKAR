@@ -1,0 +1,1 @@
+newpic() << pic5() && pic6()  # intersection

@@ -1,0 +1,1 @@
+wheel << [ door(angle=360*i) {10} ]

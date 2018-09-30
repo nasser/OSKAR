@@ -1,11 +1,19 @@
 import sys
 import traceback
 import grammar
+import actions
+import pprint
+
+# TODO commit
+# TODO commit, push, PR canopy hack
 
 def stringify(tree, indent=0):
-    if(len(tree.elements) == 0):
-        return (" " * indent) + "\"" + tree.text + "\""
-    return (" " * indent) + "<" + tree.text + ">\n" + ("\n".join([stringify(x, indent+1) for x in tree.elements]) + "\n" + (" " * indent) + "</" + tree.text + ">")
+    if(isinstance(tree, grammar.TreeNode)):
+        if(len(tree.elements) == 0):
+            return (" " * indent) + "\"" + tree.text + "\""
+        return (" " * indent) + "<" + tree.text + ">\n" + ("\n".join([stringify(x, indent+1) for x in tree.elements if x is not None]) + "\n" + (" " * indent) + "</" + tree.text + ">")
+    else:
+        return (" " * indent) + str(tree)
 
 with open(sys.argv[2], "w") as f:
     log_file = f
@@ -14,8 +22,8 @@ with open(sys.argv[2], "w") as f:
         parse_tree = ""
         errors = ""
         try:
-            parsed = grammar.parse(example_source)
-            parse_tree = stringify(parsed)
+            parsed = grammar.parse(example_source, actions=actions.Actions())
+            parse_tree = pprint.pformat([e.debug_data() for e in parsed.elements]).replace(",", "").replace("'", "")
             print("OK")
         except Exception:
             errors = traceback.format_exc()

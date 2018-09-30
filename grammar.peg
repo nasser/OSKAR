@@ -2,35 +2,38 @@ grammar oskar
 start                   <- top_level+
 top_level               <- function_definition / variable_definition / picture_definition
 
-function_definition     <- identifier parameters "=" _ expression
-parameters              <- "(" _ (parameter ("," _ parameter)* )? ")" _
-parameter               <- identifier ("=" _ literal)?
+function_definition     <- identifier parameters "=" _ expression %function_definition
+parameters              <- empty_arguments / "(" _ parameters:(first:parameter rest:("," _ parameter)* )? ")" _ %parameters
+parameter               <- identifier default:("=" _ literal)? %parameter
 
-variable_definition     <- identifier "=" _ expression
+variable_definition     <- identifier "=" _ expression %variable_definition
 
-picture_definition      <- identifier parameters? "<<" _ picture_component ( csg_operator picture_component )*
-csg_operator            <- ("++" / "--" / "&&") _
-picture_component       <- (picture_set transform_set*) / (identifier arguments)
-picture_set             <- "[" _ basis num_pics transformation* "]" _
-transform_set           <- "[" _ num_pics transformation* "]" _
-basis                   <- identifier arguments
-num_pics                <- "{" (literal / identifier) "}" _
-transformation          <- operator arguments
+picture_definition      <- identifier parameters:parameters? "<<" _ body:picture_component csg:csg_component* %picture_definition
+csg_operator            <- ("++" / "--" / "&&") _ %operator
+csg_component           <- csg_operator picture_component %csg_component
+picture_component       <- picture_set_rhs / invocation
+picture_set_rhs         <- (picture_set transform_set:transform_set*) %picture_set_rhs
+picture_set             <- "[" _ basis num_pics transformations:transformation* "]" _ %picture_set
+transform_set           <- "[" _ num_pics transformations:transformation* "]" _ %transform_set
+basis                   <- invocation
+num_pics                <- "{" value:(literal / identifier) "}" _ %num_pics
+transformation          <- operator arguments %transformation
 
-expression              <- (infix / invocation / literal / identifier) semicolon
-infix                   <- term (operator term)+
+expression              <- expression:(infix / invocation / literal / identifier) semicolon %expression
+infix                   <- lhs:term op:operator rhs:expression %infix
 term                    <- ("(" _ expression ")" _) / invocation / literal / identifier
-operator                <- [\+\*\/\-\@] _
-invocation              <- identifier arguments
-arguments               <- "(" _ (expression? ("," _ expression?)* )? ")" _
+operator                <- [\+\*\/\-\@] _ %operator
+invocation              <- identifier arguments %invocation
+arguments               <- empty_arguments / "(" _ expressions:(first:(expression / _) rest:("," _ expression:(expression / _))* )? ")" _ %arguments
+empty_arguments         <- "(" _ ")" _ %empty_list
 
-literal                 <- number
-identifier              <- !number symbol _
-number                  <- digits _
-symbol                  <- [^\s(),#]+
+literal                 <- number _ %literal
+identifier              <- !number symbol _ %identifier
+number                  <- digits _ %number
+symbol                  <- [^\s(),#=\*\+\-]+
 digits                  <- "-"? [0-9\.]+
 semicolon               <- (";" _)?
 
-_                       <- whitespace? comment?
+_                       <- whitespace? comment? %ignore
 whitespace              <- [\n\s]*
 comment                 <- "#" [^\n]* whitespace

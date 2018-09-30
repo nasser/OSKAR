@@ -1,0 +1,7 @@
+door(angle=0) << [ cube() {1}
+                   + ( -.5, -.5, -.5)  # 1. center a cube at the origin
+                   * (  .1,  .1, .025) # 2. scale down to thin slab (like a door)
+                   + (  .5,  .5,  .5)  # 3. move cube back to quadrant one.
+                   @ (   ,angle,    )  # 3. rotate around y axis, by 'angle' degrees.
+               ]                       #    to "open" door.
+newpic() << door()

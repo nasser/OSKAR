@@ -1,0 +1,1 @@
+open_door() << door(angle=30)
