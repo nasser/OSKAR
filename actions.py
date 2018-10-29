@@ -60,7 +60,7 @@ class Actions(object):
         return node_types.PictureDefinition(tree.identifier,
             tree.parameters,
             tree.body,
-            tree.csg.elements)
+            tree.csg)
 
     def num_pics(self, input, start, end, tree):
         return node_types.NumPics(tree.value)
@@ -77,5 +77,14 @@ class Actions(object):
     def picture_set_rhs(self, input, start, end, tree):
         return node_types.PictureSetRhs(tree.picture_set, tree.transform_set.elements)
 
-    def csg_component(self, input, start, end, tree):
-        return node_types.CsgComponent(tree.csg_operator, tree.picture_component)
+    def csg(self, input, start, end, tree):
+        return node_types.Csg(tree.terms)
+
+    def csg_term(self, input, start, end, tree):
+        return node_types.CsgTerm(tree.operator, tree.term)
+
+    def csg_factor(self, input, start, end, tree):
+        return node_types.CsgFactor(tree.lhs, tree.term)
+
+    def csg_picture_component(self, input, start, end, tree):
+        return tree.picture_component

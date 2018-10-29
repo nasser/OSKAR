@@ -8,9 +8,11 @@ parameter               <- identifier default:("=" _ literal)? %parameter
 
 variable_definition     <- identifier "=" _ expression %variable_definition
 
-picture_definition      <- identifier parameters:parameters? "<<" _ body:picture_component csg:csg_component* %picture_definition
+picture_definition      <- identifier parameters:parameters? "<<" _ body:picture_component csg %picture_definition
+csg                     <- terms:csg_term* _ %csg
+csg_term                <- operator:csg_operator term:csg_factor %csg_term
+csg_factor              <- "(" _ lhs:picture_component term:csg_term ")" _ %csg_factor / picture_component _ %csg_picture_component
 csg_operator            <- ("++" / "--" / "&&") _ %operator
-csg_component           <- csg_operator picture_component %csg_component
 picture_component       <- picture_set_rhs / invocation
 picture_set_rhs         <- (picture_set transform_set:transform_set*) %picture_set_rhs
 picture_set             <- "[" _ basis num_pics transformations:transformation* "]" _ %picture_set

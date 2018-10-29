@@ -1,3 +1,25 @@
+class Csg(object):
+    def __init__(self, terms):
+        self.terms = terms
+    def debug_data(self):
+        return ('Csg', [t.debug_data() for t in self.terms])
+
+class CsgTerm(object):
+    def __init__(self, operator, term):
+        self.operator = operator
+        self.term = term
+    def debug_data(self):
+        return ('CsgTerm', self.operator.debug_data(), self.term.debug_data())
+
+class CsgFactor(object):
+    def __init__(self, lhs, term):
+        self.lhs = lhs
+        self.term = term
+    def debug_data(self):
+        return ('CsgFactor',
+            self.lhs.debug_data(),
+            self.term.debug_data())
+
 class FunctionDefinition(object):
     def __init__(self, name, parameters, body):
         self.name = name
@@ -30,7 +52,7 @@ class PictureDefinition(object):
             self.name.debug_data(),
             [p.debug_data() for p in self.parameters],
             self.body.debug_data(),
-            [c.debug_data() for c in self.csg])
+            self.csg.debug_data())
 
 class PictureListDefinition(object):
     def __init__(self, name, parameters, list):
