@@ -32,6 +32,18 @@ class PictureDefinition(object):
             self.body.debug_data(),
             [c.debug_data() for c in self.csg])
 
+class PictureListDefinition(object):
+    def __init__(self, name, parameters, list):
+        self.name = name
+        self.parameters = parameters
+        self.list = list
+
+    def debug_data(self):
+        return ('PictureListDefinition',
+            self.name.debug_data(),
+            [p.debug_data() for p in self.parameters],
+            [l.debug_data() for l in self.list])
+
 class Identifier(object):
     def __init__(self, str):
         self.str = str.strip()

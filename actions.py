@@ -48,6 +48,14 @@ class Actions(object):
     def variable_definition(self, input, start, end, tree):
         return node_types.VariableDefinition(tree.identifier, tree.expression)
 
+    def picture_list_definition(self, input, start, end, tree):
+        return node_types.PictureListDefinition(tree.identifier,
+            tree.parameters,
+            tree.picture_list)
+
+    def picture_list(self, input, start, end, tree):
+        return [tree.pictures.first] + [e.identifier for e in tree.pictures.rest.elements]
+
     def picture_definition(self, input, start, end, tree):
         return node_types.PictureDefinition(tree.identifier,
             tree.parameters,
