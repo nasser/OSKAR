@@ -90,6 +90,15 @@ class Parameter(object):
                 self.identifier.debug_data(),
                 self.default_value.debug_data())
 
+class NamedArgument(object):
+    def __init__(self, identifier, expression):
+        self.identifier = identifier
+        self.expression = expression
+    def debug_data(self):
+        return ('NamedArgument',
+            self.identifier.debug_data(),
+            self.expression.debug_data())
+
 class Literal(object):
     def __init__(self, val):
         self.val = val

@@ -29,7 +29,10 @@ infix                   <- lhs:term op:operator rhs:expression %infix
 term                    <- ("(" _ expression ")" _) / invocation / literal / identifier
 operator                <- [\+\*\/\-\@] _ %operator
 invocation              <- identifier arguments %invocation
-arguments               <- empty_arguments / "(" _ expressions:(first:(expression / _) rest:("," _ expression:(expression / _))* )? ")" _ %arguments
+arguments               <- empty_arguments / "(" _ arguments:(first:(argument / _) rest:("," _ argument:(argument / _))* )? ")" _ %arguments
+argument                <- named_argument / positional_argument
+named_argument          <- identifier "=" _ expression %named_argument
+positional_argument     <- expression
 empty_arguments         <- "(" _ ")" _ %empty_list
 
 literal                 <- number _ %literal

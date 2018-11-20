@@ -37,7 +37,10 @@ class Actions(object):
         return [tree.parameters.first] + [e.parameter for e in tree.parameters.rest.elements]
 
     def arguments(self, input, start, end, tree):
-        return [tree.expressions.first or node_types.DefaultValueArgument()] + [e.expression or node_types.DefaultValueArgument() for e in tree.expressions.rest.elements]
+        return [tree.arguments.first or node_types.DefaultValueArgument()] + [e.argument or node_types.DefaultValueArgument() for e in tree.arguments.rest.elements]
+
+    def named_argument(self, input, start, end, tree):
+        return node_types.NamedArgument(tree.identifier, tree.expression)
 
     def number(self, input, start, end, tree):
         return float(input[start:end])
