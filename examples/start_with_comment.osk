@@ -1,2 +1,3 @@
-# start with a comment
+#  start with 
+# two lines of comments
 open_door() << door(angle=30)

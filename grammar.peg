@@ -42,6 +42,6 @@ symbol                  <- [^\s(),#=\*\+\-\[\]]+
 digits                  <- "-"? [0-9\.]+
 semicolon               <- (";" _)?
 
-_                       <- whitespace? comment? %ignore
+_                       <- whitespace? comment* %ignore
 whitespace              <- [\n\s]*
 comment                 <- "#" [^\n]* whitespace

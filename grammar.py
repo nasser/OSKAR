@@ -2408,11 +2408,17 @@ class Grammar(object):
         if address1 is not FAILURE:
             elements0.append(address1)
             address2 = FAILURE
-            index3 = self._offset
-            address2 = self._read_comment()
-            if address2 is FAILURE:
-                address2 = TreeNode(self._input[index3:index3], index3)
-                self._offset = index3
+            remaining0, index3, elements1, address3 = 0, self._offset, [], True
+            while address3 is not FAILURE:
+                address3 = self._read_comment()
+                if address3 is not FAILURE:
+                    elements1.append(address3)
+                    remaining0 -= 1
+            if remaining0 <= 0:
+                address2 = TreeNode(self._input[index3:self._offset], index3, elements1)
+                self._offset = self._offset
+            else:
+                address2 = FAILURE
             if address2 is not FAILURE:
                 elements0.append(address2)
             else:
