@@ -12,6 +12,9 @@ class Actions(object):
             tree.parameters,
             tree.expression)
 
+    def top_level(self, input, start, end, tree):
+        return tree.expr
+
     def identifier(self, input, start, end, tree):
         return node_types.Identifier(input[start:end])
 

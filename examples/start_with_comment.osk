@@ -1,0 +1,2 @@
+# start with a comment
+open_door() << door(angle=30)

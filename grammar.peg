@@ -1,6 +1,6 @@
 grammar oskar
 start                   <- top_level+
-top_level               <- function_definition / variable_definition / picture_list_definition / picture_definition
+top_level               <- _ expr:(function_definition / variable_definition / picture_list_definition / picture_definition) %top_level
 
 function_definition     <- identifier parameters "=" _ expression %function_definition
 parameters              <- empty_arguments / "(" _ parameters:(first:parameter rest:("," _ parameter)* )? ")" _ %parameters
