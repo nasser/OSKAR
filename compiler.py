@@ -3,6 +3,8 @@ import traceback
 import grammar
 import actions
 import pprint
+import ast
+import astor
 
 # TODO commit
 # TODO commit, push, PR canopy hack
@@ -34,3 +36,5 @@ with open(sys.argv[2], "w") as f:
         log_file.write(parse_tree)
         log_file.write("\n--- errors\n")
         log_file.write(errors)
+        log_file.write("\n--- parser test\n")
+        log_file.write(astor.to_source(ast.Call(ast.Name(sys.argv[1]), [ast.Name(sys.argv[1])], [])))
