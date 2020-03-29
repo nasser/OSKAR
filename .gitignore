@@ -1,2 +1,5 @@
 .ionide
 node_modules
+
+bin
+obj
