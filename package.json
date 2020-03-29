@@ -1,0 +1,26 @@
+{
+  "name": "oskar",
+  "version": "3.0.0",
+  "description": "The OSKAR Programming Language",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "dependencies": {
+    "arz": "^0.0.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nasser/OSKAR.git"
+  },
+  "author": "Larry Cuba, Ramsey Nasser",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/nasser/OSKAR/issues"
+  },
+  "homepage": "https://github.com/nasser/OSKAR#readme"
+}
