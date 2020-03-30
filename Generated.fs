@@ -121,7 +121,8 @@ and CsgOperatorElement1 =
 | Plusplus of ArzLiteral
 | Minusminus of ArzLiteral
 | Andand of ArzLiteral
-and PictureComponent = PictureComponent of Basis * PictureSetRhs
+and PictureComponent = PictureComponent of Basis * PictureComponentElement2
+and PictureComponentElement2 = PictureComponentElement2 of PictureSetRhs option
 and PictureSetRhs = PictureSetRhs of PictureSet * transform_set:PictureSetRhsTransformSet
 and PictureSetRhsTransformSet = TransformSet list
 and PictureSet = PictureSet of NumPics * transformations:PictureSetTransformations
@@ -479,7 +480,7 @@ and picture_component (sr:SourceReader) : PictureComponent option =
   if Option.isNone var0 then
     reset sr p; None
   else
-  let var1 = picture_set_rhs sr
+  let var1 = picture_component_element2 sr
   if Option.isNone var1 then
     reset sr p; None
   else
@@ -488,6 +489,11 @@ and picture_component (sr:SourceReader) : PictureComponent option =
     reset sr p; None
   else
     Some (PictureComponent.PictureComponent (Option.get var0,Option.get var1))
+and picture_component_element2 (sr:SourceReader) : PictureComponentElement2 option =
+  let p = position sr
+  match picture_set_rhs sr with
+  | Some v -> Some (PictureComponentElement2 (Some v))
+  | None -> Some (PictureComponentElement2 None)
 and picture_set_rhs (sr:SourceReader) : PictureSetRhs option =
   let p = position sr
   let var0 = picture_set sr

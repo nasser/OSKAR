@@ -1,1 +1,1 @@
-TrigFunc() = sin(360)+cos(3);
+TrigFunc() :: sin(360)+cos(3);

@@ -1,6 +1,6 @@
-spun() << [ cube() {1}             # the cube primitive starts in first quadrant
-               + (-.5, -.5,-.5)  # 1. center cube at origin with translation
-               * ( .1,.025, .1)  # 2. scale down to a small, very thin slab
-               @ (   ,  35,   )  # 3. rotate around y axis, by 35 degrees.
-               + ( .5,  .5, .5)  # 4. move cube back to first quadrant position
-        ]
+spun() << cube() [ {1}               # the cube primitive starts in first quadrant
+                   + (-.5, -.5,-.5)  # 1. center cube at origin with translation
+                   * ( .1,.025, .1)  # 2. scale down to a small, very thin slab
+                   @ ( _ ,  35, _ )  # 3. rotate around y axis, by 35 degrees.
+                   + ( .5,  .5, .5)  # 4. move cube back to first quadrant position
+                 ]
