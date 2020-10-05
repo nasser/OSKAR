@@ -93,78 +93,16 @@ let parseList sr minimum parsef =
 
 
 type Start = TopLevel list
-and TopLevel = TopLevel of expr:TopLevelExpr
-and TopLevelExpr = 
-| FunctionDefinition of FunctionDefinition
-| VariableDefinition of VariableDefinition
-| PictureListDefinition of PictureListDefinition
+and TopLevel = 
+| PythonCode of PythonCode
 | PictureDefinition of PictureDefinition
-and FunctionDefinition = FunctionDefinition of Identifier * Parameters * Expression
-and Parameters = Parameters of ParametersElement3
-and ParametersElement3 = Parameter list
-and Parameter = Parameter of Identifier * default_value:ParameterDefaultValue
-and ParameterDefaultValue = ParameterDefaultValue of ParameterDefaultValueExpression option
-and ParameterDefaultValueExpression = ParameterDefaultValueExpression of Literal
-and VariableDefinition = VariableDefinition of Identifier * Expression
-and PictureDefinition = PictureDefinition of Identifier * parameters:PictureDefinitionParameters * body:PictureComponent * Csg
-and PictureDefinitionParameters = PictureDefinitionParameters of Parameters option
-and Csg = Csg of terms:CsgTerms
-and CsgTerms = CsgTerm list
-and CsgTerm = CsgTerm of operator:CsgOperator * term:CsgFactor
-and CsgFactor = 
-| CsgFactorCase1 of CsgFactorCase1
-| CsgFactorCase7 of CsgFactorCase7
-and CsgFactorCase1 = CsgFactorCase1 of lhs:PictureComponent * term:CsgTerm
-and CsgFactorCase7 = CsgFactorCase7 of PictureComponent
-and CsgOperator = CsgOperator of CsgOperatorElement1
-and CsgOperatorElement1 = 
-| Plusplus of ArzLiteral
-| Minusminus of ArzLiteral
-| Andand of ArzLiteral
-and PictureComponent = PictureComponent of Basis * PictureComponentElement2
-and PictureComponentElement2 = PictureComponentElement2 of PictureSetRhs option
-and PictureSetRhs = PictureSetRhs of PictureSet * transform_set:PictureSetRhsTransformSet
-and PictureSetRhsTransformSet = TransformSet list
-and PictureSet = PictureSet of NumPics * transformations:PictureSetTransformations
-and PictureSetTransformations = Transformation list
-and TransformSet = TransformSet of NumPics * transformations:TransformSetTransformations
-and TransformSetTransformations = Transformation list
-and Basis = 
-| Invocation of Invocation
-| Identifier of Identifier
-and NumPics = NumPics of value:NumPicsValue
-and NumPicsValue = 
-| Literal of Literal
-| Identifier of Identifier
-and Transformation = Transformation of Operator * Arguments
-and PictureListDefinition = PictureListDefinition of Identifier * parameters:PictureListDefinitionParameters * PictureList
-and PictureListDefinitionParameters = PictureListDefinitionParameters of Parameters option
-and PictureList = PictureList of PictureListElement3
-and PictureListElement3 = PictureListElement3Expression list
-and PictureListElement3Expression = PictureListElement3Expression of Identifier
-and Expression = Expression of expression:ExpressionExpression
-and ExpressionExpression = 
-| Infix of Infix
-| Invocation of Invocation
-| Literal of Literal
-| Identifier of Identifier
-and Infix = Infix of lhs:Term * op:Operator * rhs:Expression
-and Term = 
-| Expression of TermExpression
-| Invocation of Invocation
-| Literal of Literal
-| Identifier of Identifier
-and TermExpression = TermExpression of Expression
-and Operator = Operator of char
-and Invocation = Invocation of Identifier * Arguments
-and Arguments = Arguments of ArgumentsElement3
-and ArgumentsElement3 = Argument list
-and Argument = Argument of ArgumentElement1
-and ArgumentElement1 = 
-| NamedArgument of NamedArgument
-| PositionalArgument of PositionalArgument
-and NamedArgument = NamedArgument of Identifier * Expression
-and PositionalArgument = PositionalArgument of Expression
+and PythonCode = PythonCode of code:PythonCodeCode
+and PythonCodeCode = PythonCodeLine list
+and UnderscorePythonCodeDelimeter = UnderscorePythonCodeDelimeter of UnderscorePythonCodeDelimeterElement2
+and UnderscorePythonCodeDelimeterElement2 = UnderscorePythonCodeDelimeterElement2 of UnderscoreNewline option
+and PythonCodeLine = PythonCodeLine of content:PythonCodeLineContent
+and PythonCodeLineContent = string
+and PictureDefinition = PictureDefinition of Todo
 and Literal = Literal of Number
 and Identifier = Identifier of Symbol
 and Number = Number of Digits
@@ -179,9 +117,11 @@ and UnderscoreCommaExpression = UnderscoreCommaExpression
 and Underscore = Underscore of UnderscoreElement1 * UnderscoreElement2
 and UnderscoreElement1 = UnderscoreElement1 of Whitespace option
 and UnderscoreElement2 = Comment list
+and UnderscoreNewline = UnderscoreNewline of char
 and Whitespace = string
 and Comment = Comment of CommentElement2 * Whitespace
 and CommentElement2 = string
+and Todo = ArzLiteral
 let rec start (sr:SourceReader) : Start option =
   let p = position sr
   let rec readList list =
@@ -189,722 +129,96 @@ let rec start (sr:SourceReader) : Start option =
     | Some next -> readList (List.append list [next])
     | None -> list
   match readList [] with
-  | list when List.length list >= 1 -> Some list
+  | list when List.length list >= 0 -> Some list
   | _ ->
   reset sr p
   None
 and top_level (sr:SourceReader) : TopLevel option =
   let p = position sr
-  let var0 = underscore sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = top_level_expr sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (TopLevel.TopLevel (Option.get var1))
-and top_level_expr (sr:SourceReader) : TopLevelExpr option =
-  let p = position sr
-  match function_definition sr with
-  | Some x -> Some (TopLevelExpr.FunctionDefinition x)
-  | _ ->
-  reset sr p
-  match variable_definition sr with
-  | Some x -> Some (TopLevelExpr.VariableDefinition x)
-  | _ ->
-  reset sr p
-  match picture_list_definition sr with
-  | Some x -> Some (TopLevelExpr.PictureListDefinition x)
+  match python_code sr with
+  | Some x -> Some (TopLevel.PythonCode x)
   | _ ->
   reset sr p
   match picture_definition sr with
-  | Some x -> Some (TopLevelExpr.PictureDefinition x)
+  | Some x -> Some (TopLevel.PictureDefinition x)
   | _ ->
   reset sr p
   None
-and function_definition (sr:SourceReader) : FunctionDefinition option =
+and python_code (sr:SourceReader) : PythonCode option =
   let p = position sr
-  let var0 = identifier sr
+  let var0 = underscore_python_code_delimeter sr
   if Option.isNone var0 then
     reset sr p; None
   else
-  let var1 = parameters sr
+  let var1 = python_code_code sr
   if Option.isNone var1 then
     reset sr p; None
   else
-  let var2 = expectLiteral sr "::"
+  let var2 = underscore_python_code_delimeter sr
   if Option.isNone var2 then
     reset sr p; None
   else
-  let var3 = underscore sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = expression sr
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-    Some (FunctionDefinition.FunctionDefinition (Option.get var0,Option.get var1,Option.get var4))
-and parameters (sr:SourceReader) : Parameters option =
-  let p = position sr
-  let var0 = expectLiteral sr "("
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = parameters_element3 sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = expectLiteral sr ")"
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = underscore sr
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-    Some (Parameters.Parameters (Option.get var2))
-and parameters_element3 (sr:SourceReader) : ParametersElement3 option =
+    Some (PythonCode.PythonCode (Option.get var1))
+and python_code_code (sr:SourceReader) : PythonCodeCode option =
   let p = position sr
   let rec readList list =
-    match parameter sr with
+    match python_code_line sr with
     | Some next -> readList (List.append list [next])
     | None -> list
   match readList [] with
-  | list when List.length list >= 0 -> Some list
+  | list when List.length list >= 1 -> Some list
   | _ ->
   reset sr p
   None
-and parameter (sr:SourceReader) : Parameter option =
+and underscore_python_code_delimeter (sr:SourceReader) : UnderscorePythonCodeDelimeter option =
   let p = position sr
-  let var0 = identifier sr
+  let var0 = expectLiteral sr "***"
   if Option.isNone var0 then
     reset sr p; None
   else
-  let var1 = parameter_default_value sr
+  let var1 = underscore_python_code_delimeter_element2 sr
   if Option.isNone var1 then
     reset sr p; None
   else
-  let var2 = underscore_comma sr
-  if Option.isNone var2 then
+    Some (UnderscorePythonCodeDelimeter.UnderscorePythonCodeDelimeter (Option.get var1))
+and underscore_python_code_delimeter_element2 (sr:SourceReader) : UnderscorePythonCodeDelimeterElement2 option =
+  let p = position sr
+  match underscore_newline sr with
+  | Some v -> Some (UnderscorePythonCodeDelimeterElement2 (Some v))
+  | None -> Some (UnderscorePythonCodeDelimeterElement2 None)
+and python_code_line (sr:SourceReader) : PythonCodeLine option =
+  let p = position sr
+  let p0 = position sr
+  let var0 = underscore_python_code_delimeter sr
+  if Option.isSome var0 then
     reset sr p; None
   else
-    Some (Parameter.Parameter (Option.get var0,Option.get var1))
-and parameter_default_value (sr:SourceReader) : ParameterDefaultValue option =
-  let p = position sr
-  match parameter_default_value_expression sr with
-  | Some v -> Some (ParameterDefaultValue (Some v))
-  | None -> Some (ParameterDefaultValue None)
-and parameter_default_value_expression (sr:SourceReader) : ParameterDefaultValueExpression option =
-  let p = position sr
-  let var0 = expectLiteral sr "="
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
+  reset sr p0
+  let var1 = python_code_line_content sr
   if Option.isNone var1 then
     reset sr p; None
   else
-  let var2 = literal sr
+  let var2 = underscore_newline sr
   if Option.isNone var2 then
     reset sr p; None
   else
-    Some (ParameterDefaultValueExpression.ParameterDefaultValueExpression (Option.get var2))
-and variable_definition (sr:SourceReader) : VariableDefinition option =
+    Some (PythonCodeLine.PythonCodeLine (Option.get var1))
+and python_code_line_content (sr:SourceReader) : PythonCodeLineContent option =
   let p = position sr
-  let var0 = identifier sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = expectLiteral sr "="
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = underscore sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = expression sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-    Some (VariableDefinition.VariableDefinition (Option.get var0,Option.get var3))
+  let pattern = Regex "[^\n]"
+  let rec readString s =
+    match expectMatch pattern sr with
+    | Some c -> readString (s + (string c))
+    | None -> s
+  match readString "" with
+  | s when s.Length >= 0 -> Some s
+  | _ ->
+  reset sr p
+  None
 and picture_definition (sr:SourceReader) : PictureDefinition option =
   let p = position sr
-  let var0 = identifier sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = picture_definition_parameters sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = expectLiteral sr "<<"
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = underscore sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = picture_component sr
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-  let var5 = csg sr
-  if Option.isNone var5 then
-    reset sr p; None
-  else
-    Some (PictureDefinition.PictureDefinition (Option.get var0,Option.get var1,Option.get var4,Option.get var5))
-and picture_definition_parameters (sr:SourceReader) : PictureDefinitionParameters option =
-  let p = position sr
-  match parameters sr with
-  | Some v -> Some (PictureDefinitionParameters (Some v))
-  | None -> Some (PictureDefinitionParameters None)
-and csg (sr:SourceReader) : Csg option =
-  let p = position sr
-  let var0 = csg_terms sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (Csg.Csg (Option.get var0))
-and csg_terms (sr:SourceReader) : CsgTerms option =
-  let p = position sr
-  let rec readList list =
-    match csg_term sr with
-    | Some next -> readList (List.append list [next])
-    | None -> list
-  match readList [] with
-  | list when List.length list >= 0 -> Some list
-  | _ ->
-  reset sr p
-  None
-and csg_term (sr:SourceReader) : CsgTerm option =
-  let p = position sr
-  let var0 = csg_operator sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = csg_factor sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (CsgTerm.CsgTerm (Option.get var0,Option.get var1))
-and csg_factor (sr:SourceReader) : CsgFactor option =
-  let p = position sr
-  match csg_factor_case1 sr with
-  | Some x -> Some (CsgFactor.CsgFactorCase1 x)
-  | _ ->
-  reset sr p
-  match csg_factor_case7 sr with
-  | Some x -> Some (CsgFactor.CsgFactorCase7 x)
-  | _ ->
-  reset sr p
-  None
-and csg_factor_case1 (sr:SourceReader) : CsgFactorCase1 option =
-  let p = position sr
-  let var0 = expectLiteral sr "("
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = picture_component sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = csg_term sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = expectLiteral sr ")"
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-  let var5 = underscore sr
-  if Option.isNone var5 then
-    reset sr p; None
-  else
-    Some (CsgFactorCase1.CsgFactorCase1 (Option.get var2,Option.get var3))
-and csg_factor_case7 (sr:SourceReader) : CsgFactorCase7 option =
-  let p = position sr
-  let var0 = picture_component sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (CsgFactorCase7.CsgFactorCase7 (Option.get var0))
-and csg_operator (sr:SourceReader) : CsgOperator option =
-  let p = position sr
-  let var0 = csg_operator_element1 sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (CsgOperator.CsgOperator (Option.get var0))
-and csg_operator_element1 (sr:SourceReader) : CsgOperatorElement1 option =
-  let p = position sr
-  match expectLiteral sr "++" with
-  | Some x -> Some (CsgOperatorElement1.Plusplus x)
-  | _ ->
-  reset sr p
-  match expectLiteral sr "--" with
-  | Some x -> Some (CsgOperatorElement1.Minusminus x)
-  | _ ->
-  reset sr p
-  match expectLiteral sr "&&" with
-  | Some x -> Some (CsgOperatorElement1.Andand x)
-  | _ ->
-  reset sr p
-  None
-and picture_component (sr:SourceReader) : PictureComponent option =
-  let p = position sr
-  let var0 = basis sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = picture_component_element2 sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = underscore sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-    Some (PictureComponent.PictureComponent (Option.get var0,Option.get var1))
-and picture_component_element2 (sr:SourceReader) : PictureComponentElement2 option =
-  let p = position sr
-  match picture_set_rhs sr with
-  | Some v -> Some (PictureComponentElement2 (Some v))
-  | None -> Some (PictureComponentElement2 None)
-and picture_set_rhs (sr:SourceReader) : PictureSetRhs option =
-  let p = position sr
-  let var0 = picture_set sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = picture_set_rhs_transform_set sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (PictureSetRhs.PictureSetRhs (Option.get var0,Option.get var1))
-and picture_set_rhs_transform_set (sr:SourceReader) : PictureSetRhsTransformSet option =
-  let p = position sr
-  let rec readList list =
-    match transform_set sr with
-    | Some next -> readList (List.append list [next])
-    | None -> list
-  match readList [] with
-  | list when List.length list >= 0 -> Some list
-  | _ ->
-  reset sr p
-  None
-and picture_set (sr:SourceReader) : PictureSet option =
-  let p = position sr
-  let var0 = expectLiteral sr "["
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = num_pics sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = picture_set_transformations sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = expectLiteral sr "]"
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-  let var5 = underscore sr
-  if Option.isNone var5 then
-    reset sr p; None
-  else
-    Some (PictureSet.PictureSet (Option.get var2,Option.get var3))
-and picture_set_transformations (sr:SourceReader) : PictureSetTransformations option =
-  let p = position sr
-  let rec readList list =
-    match transformation sr with
-    | Some next -> readList (List.append list [next])
-    | None -> list
-  match readList [] with
-  | list when List.length list >= 0 -> Some list
-  | _ ->
-  reset sr p
-  None
-and transform_set (sr:SourceReader) : TransformSet option =
-  let p = position sr
-  let var0 = expectLiteral sr "["
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = num_pics sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = transform_set_transformations sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = expectLiteral sr "]"
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-  let var5 = underscore sr
-  if Option.isNone var5 then
-    reset sr p; None
-  else
-    Some (TransformSet.TransformSet (Option.get var2,Option.get var3))
-and transform_set_transformations (sr:SourceReader) : TransformSetTransformations option =
-  let p = position sr
-  let rec readList list =
-    match transformation sr with
-    | Some next -> readList (List.append list [next])
-    | None -> list
-  match readList [] with
-  | list when List.length list >= 0 -> Some list
-  | _ ->
-  reset sr p
-  None
-and basis (sr:SourceReader) : Basis option =
-  let p = position sr
-  match invocation sr with
-  | Some x -> Some (Basis.Invocation x)
-  | _ ->
-  reset sr p
-  match identifier sr with
-  | Some x -> Some (Basis.Identifier x)
-  | _ ->
-  reset sr p
-  None
-and num_pics (sr:SourceReader) : NumPics option =
-  let p = position sr
-  let var0 = expectLiteral sr "{"
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = num_pics_value sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = expectLiteral sr "}"
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = underscore sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-    Some (NumPics.NumPics (Option.get var1))
-and num_pics_value (sr:SourceReader) : NumPicsValue option =
-  let p = position sr
-  match literal sr with
-  | Some x -> Some (NumPicsValue.Literal x)
-  | _ ->
-  reset sr p
-  match identifier sr with
-  | Some x -> Some (NumPicsValue.Identifier x)
-  | _ ->
-  reset sr p
-  None
-and transformation (sr:SourceReader) : Transformation option =
-  let p = position sr
-  let var0 = operator sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = arguments sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (Transformation.Transformation (Option.get var0,Option.get var1))
-and picture_list_definition (sr:SourceReader) : PictureListDefinition option =
-  let p = position sr
-  let var0 = identifier sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = picture_list_definition_parameters sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = expectLiteral sr "<<<"
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = underscore sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = picture_list sr
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-    Some (PictureListDefinition.PictureListDefinition (Option.get var0,Option.get var1,Option.get var4))
-and picture_list_definition_parameters (sr:SourceReader) : PictureListDefinitionParameters option =
-  let p = position sr
-  match parameters sr with
-  | Some v -> Some (PictureListDefinitionParameters (Some v))
-  | None -> Some (PictureListDefinitionParameters None)
-and picture_list (sr:SourceReader) : PictureList option =
-  let p = position sr
-  let var0 = expectLiteral sr "["
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = picture_list_element3 sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = expectLiteral sr "]"
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = underscore sr
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-    Some (PictureList.PictureList (Option.get var2))
-and picture_list_element3 (sr:SourceReader) : PictureListElement3 option =
-  let p = position sr
-  let rec readList list =
-    match picture_list_element3_expression sr with
-    | Some next -> readList (List.append list [next])
-    | None -> list
-  match readList [] with
-  | list when List.length list >= 0 -> Some list
-  | _ ->
-  reset sr p
-  None
-and picture_list_element3_expression (sr:SourceReader) : PictureListElement3Expression option =
-  let p = position sr
-  let var0 = identifier sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore_comma sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (PictureListElement3Expression.PictureListElement3Expression (Option.get var0))
-and expression (sr:SourceReader) : Expression option =
-  let p = position sr
-  let var0 = expression_expression sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore_semicolon sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (Expression.Expression (Option.get var0))
-and expression_expression (sr:SourceReader) : ExpressionExpression option =
-  let p = position sr
-  match infix sr with
-  | Some x -> Some (ExpressionExpression.Infix x)
-  | _ ->
-  reset sr p
-  match invocation sr with
-  | Some x -> Some (ExpressionExpression.Invocation x)
-  | _ ->
-  reset sr p
-  match literal sr with
-  | Some x -> Some (ExpressionExpression.Literal x)
-  | _ ->
-  reset sr p
-  match identifier sr with
-  | Some x -> Some (ExpressionExpression.Identifier x)
-  | _ ->
-  reset sr p
-  None
-and infix (sr:SourceReader) : Infix option =
-  let p = position sr
-  let var0 = term sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = operator sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = expression sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-    Some (Infix.Infix (Option.get var0,Option.get var1,Option.get var2))
-and term (sr:SourceReader) : Term option =
-  let p = position sr
-  match term_expression sr with
-  | Some x -> Some (Term.Expression x)
-  | _ ->
-  reset sr p
-  match invocation sr with
-  | Some x -> Some (Term.Invocation x)
-  | _ ->
-  reset sr p
-  match literal sr with
-  | Some x -> Some (Term.Literal x)
-  | _ ->
-  reset sr p
-  match identifier sr with
-  | Some x -> Some (Term.Identifier x)
-  | _ ->
-  reset sr p
-  None
-and term_expression (sr:SourceReader) : TermExpression option =
-  let p = position sr
-  let var0 = expectLiteral sr "("
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = expression sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = expectLiteral sr ")"
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = underscore sr
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-    Some (TermExpression.TermExpression (Option.get var2))
-and operator (sr:SourceReader) : Operator option =
-  let p = position sr
-  let var0 = expectMatch (Regex "[\+\*\/\-@]") sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (Operator.Operator (Option.get var0))
-and invocation (sr:SourceReader) : Invocation option =
-  let p = position sr
-  let var0 = identifier sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = arguments sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (Invocation.Invocation (Option.get var0,Option.get var1))
-and arguments (sr:SourceReader) : Arguments option =
-  let p = position sr
-  let var0 = expectLiteral sr "("
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = arguments_element3 sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = expectLiteral sr ")"
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-  let var4 = underscore sr
-  if Option.isNone var4 then
-    reset sr p; None
-  else
-    Some (Arguments.Arguments (Option.get var2))
-and arguments_element3 (sr:SourceReader) : ArgumentsElement3 option =
-  let p = position sr
-  let rec readList list =
-    match argument sr with
-    | Some next -> readList (List.append list [next])
-    | None -> list
-  match readList [] with
-  | list when List.length list >= 0 -> Some list
-  | _ ->
-  reset sr p
-  None
-and argument (sr:SourceReader) : Argument option =
-  let p = position sr
-  let var0 = argument_element1 sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore_comma sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (Argument.Argument (Option.get var0))
-and argument_element1 (sr:SourceReader) : ArgumentElement1 option =
-  let p = position sr
-  match named_argument sr with
-  | Some x -> Some (ArgumentElement1.NamedArgument x)
-  | _ ->
-  reset sr p
-  match positional_argument sr with
-  | Some x -> Some (ArgumentElement1.PositionalArgument x)
-  | _ ->
-  reset sr p
-  None
-and named_argument (sr:SourceReader) : NamedArgument option =
-  let p = position sr
-  let var0 = identifier sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = expectLiteral sr "="
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-  let var2 = underscore sr
-  if Option.isNone var2 then
-    reset sr p; None
-  else
-  let var3 = expression sr
-  if Option.isNone var3 then
-    reset sr p; None
-  else
-    Some (NamedArgument.NamedArgument (Option.get var0,Option.get var3))
-and positional_argument (sr:SourceReader) : PositionalArgument option =
-  let p = position sr
-  match expression sr with
-  | Some v -> Some (PositionalArgument v)
+  match todo sr with
+  | Some v -> Some (PictureDefinition v)
   | None ->
   reset sr p
   None
@@ -1040,6 +354,13 @@ and underscore__element2 (sr:SourceReader) : UnderscoreElement2 option =
   | _ ->
   reset sr p
   None
+and underscore_newline (sr:SourceReader) : UnderscoreNewline option =
+  let p = position sr
+  match expectMatch (Regex "[\n]") sr with
+  | Some s -> Some (UnderscoreNewline s)
+  | None ->
+  reset sr p
+  None
 and whitespace (sr:SourceReader) : Whitespace option =
   let p = position sr
   let pattern = Regex "[\n ]"
@@ -1077,6 +398,13 @@ and comment_element2 (sr:SourceReader) : CommentElement2 option =
   match readString "" with
   | s when s.Length >= 0 -> Some s
   | _ ->
+  reset sr p
+  None
+and todo (sr:SourceReader) : Todo option =
+  let p = position sr
+  match expectString sr "##TODO##" with
+  | Some v -> Some (ArzLiteral v)
+  | None ->
   reset sr p
   None
 
