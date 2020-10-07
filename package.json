@@ -7,7 +7,7 @@
     "example": "examples"
   },
   "dependencies": {
-    "arz": "nasser/arz"
+    "arz": "github:nasser/arz"
   },
   "devDependencies": {},
   "scripts": {

@@ -92,17 +92,25 @@ let parseList sr minimum parsef =
 /// START GENERATED GRAMMAR ///
 
 
-type Start = TopLevel list
+type Start = Start of StartElement2
+and StartElement2 = TopLevel list
 and TopLevel = 
 | PythonCode of PythonCode
-| PictureDefinition of PictureDefinition
+| TopLevelCase2 of TopLevelCase2
+and TopLevelCase2 = TopLevelCase2 of PictureDefinition
 and PythonCode = PythonCode of code:PythonCodeCode
 and PythonCodeCode = PythonCodeLine list
-and UnderscorePythonCodeDelimeter = UnderscorePythonCodeDelimeter of UnderscorePythonCodeDelimeterElement2
-and UnderscorePythonCodeDelimeterElement2 = UnderscorePythonCodeDelimeterElement2 of UnderscoreNewline option
 and PythonCodeLine = PythonCodeLine of content:PythonCodeLineContent
 and PythonCodeLineContent = string
-and PictureDefinition = PictureDefinition of Todo
+and PictureDefinition = 
+| StandardPicture of StandardPicture
+| PictureFunction of PictureFunction
+| PictureSelection of PictureSelection
+| PictureCombination of PictureCombination
+and StandardPicture = StandardPicture of Todo
+and PictureFunction = PictureFunction of Todo
+and PictureSelection = PictureSelection of Todo
+and PictureCombination = PictureCombination of Todo
 and Literal = Literal of Number
 and Identifier = Identifier of Symbol
 and Number = Number of Digits
@@ -119,10 +127,27 @@ and UnderscoreElement1 = UnderscoreElement1 of Whitespace option
 and UnderscoreElement2 = Comment list
 and UnderscoreNewline = UnderscoreNewline of char
 and Whitespace = string
-and Comment = Comment of CommentElement2 * Whitespace
-and CommentElement2 = string
+and Comment = 
+| SingleLineComment of SingleLineComment
+| MultiLineComment of MultiLineComment
+and SingleLineComment = SingleLineComment of SingleLineCommentElement2 * Whitespace
+and SingleLineCommentElement2 = string
+and MultiLineComment = MultiLineComment of MultiLineCommentElement2 * Whitespace
+and MultiLineCommentElement2 = MultiLineCommentElement2Expression list
+and MultiLineCommentElement2Expression = MultiLineCommentElement2Expression of char
 and Todo = ArzLiteral
 let rec start (sr:SourceReader) : Start option =
+  let p = position sr
+  let var0 = underscore sr
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = start_element2 sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+    Some (Start.Start (Option.get var1))
+and start_element2 (sr:SourceReader) : StartElement2 option =
   let p = position sr
   let rec readList list =
     match top_level sr with
@@ -139,14 +164,25 @@ and top_level (sr:SourceReader) : TopLevel option =
   | Some x -> Some (TopLevel.PythonCode x)
   | _ ->
   reset sr p
-  match picture_definition sr with
-  | Some x -> Some (TopLevel.PictureDefinition x)
+  match top_level_case2 sr with
+  | Some x -> Some (TopLevel.TopLevelCase2 x)
   | _ ->
   reset sr p
   None
+and top_level_case2 (sr:SourceReader) : TopLevelCase2 option =
+  let p = position sr
+  let var0 = picture_definition sr
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+    Some (TopLevelCase2.TopLevelCase2 (Option.get var0))
 and python_code (sr:SourceReader) : PythonCode option =
   let p = position sr
-  let var0 = underscore_python_code_delimeter sr
+  let var0 = expectLiteral sr "***"
   if Option.isNone var0 then
     reset sr p; None
   else
@@ -154,8 +190,12 @@ and python_code (sr:SourceReader) : PythonCode option =
   if Option.isNone var1 then
     reset sr p; None
   else
-  let var2 = underscore_python_code_delimeter sr
+  let var2 = expectLiteral sr "***"
   if Option.isNone var2 then
+    reset sr p; None
+  else
+  let var3 = underscore sr
+  if Option.isNone var3 then
     reset sr p; None
   else
     Some (PythonCode.PythonCode (Option.get var1))
@@ -170,26 +210,10 @@ and python_code_code (sr:SourceReader) : PythonCodeCode option =
   | _ ->
   reset sr p
   None
-and underscore_python_code_delimeter (sr:SourceReader) : UnderscorePythonCodeDelimeter option =
-  let p = position sr
-  let var0 = expectLiteral sr "***"
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore_python_code_delimeter_element2 sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (UnderscorePythonCodeDelimeter.UnderscorePythonCodeDelimeter (Option.get var1))
-and underscore_python_code_delimeter_element2 (sr:SourceReader) : UnderscorePythonCodeDelimeterElement2 option =
-  let p = position sr
-  match underscore_newline sr with
-  | Some v -> Some (UnderscorePythonCodeDelimeterElement2 (Some v))
-  | None -> Some (UnderscorePythonCodeDelimeterElement2 None)
 and python_code_line (sr:SourceReader) : PythonCodeLine option =
   let p = position sr
   let p0 = position sr
-  let var0 = underscore_python_code_delimeter sr
+  let var0 = expectLiteral sr "***"
   if Option.isSome var0 then
     reset sr p; None
   else
@@ -217,8 +241,48 @@ and python_code_line_content (sr:SourceReader) : PythonCodeLineContent option =
   None
 and picture_definition (sr:SourceReader) : PictureDefinition option =
   let p = position sr
+  match standard_picture sr with
+  | Some x -> Some (PictureDefinition.StandardPicture x)
+  | _ ->
+  reset sr p
+  match picture_function sr with
+  | Some x -> Some (PictureDefinition.PictureFunction x)
+  | _ ->
+  reset sr p
+  match picture_selection sr with
+  | Some x -> Some (PictureDefinition.PictureSelection x)
+  | _ ->
+  reset sr p
+  match picture_combination sr with
+  | Some x -> Some (PictureDefinition.PictureCombination x)
+  | _ ->
+  reset sr p
+  None
+and standard_picture (sr:SourceReader) : StandardPicture option =
+  let p = position sr
   match todo sr with
-  | Some v -> Some (PictureDefinition v)
+  | Some v -> Some (StandardPicture v)
+  | None ->
+  reset sr p
+  None
+and picture_function (sr:SourceReader) : PictureFunction option =
+  let p = position sr
+  match todo sr with
+  | Some v -> Some (PictureFunction v)
+  | None ->
+  reset sr p
+  None
+and picture_selection (sr:SourceReader) : PictureSelection option =
+  let p = position sr
+  match todo sr with
+  | Some v -> Some (PictureSelection v)
+  | None ->
+  reset sr p
+  None
+and picture_combination (sr:SourceReader) : PictureCombination option =
+  let p = position sr
+  match todo sr with
+  | Some v -> Some (PictureCombination v)
   | None ->
   reset sr p
   None
@@ -363,7 +427,7 @@ and underscore_newline (sr:SourceReader) : UnderscoreNewline option =
   None
 and whitespace (sr:SourceReader) : Whitespace option =
   let p = position sr
-  let pattern = Regex "[\n ]"
+  let pattern = Regex "[\n\t ]"
   let rec readString s =
     match expectMatch pattern sr with
     | Some c -> readString (s + (string c))
@@ -375,11 +439,22 @@ and whitespace (sr:SourceReader) : Whitespace option =
   None
 and comment (sr:SourceReader) : Comment option =
   let p = position sr
+  match single_line_comment sr with
+  | Some x -> Some (Comment.SingleLineComment x)
+  | _ ->
+  reset sr p
+  match multi_line_comment sr with
+  | Some x -> Some (Comment.MultiLineComment x)
+  | _ ->
+  reset sr p
+  None
+and single_line_comment (sr:SourceReader) : SingleLineComment option =
+  let p = position sr
   let var0 = expectLiteral sr "#"
   if Option.isNone var0 then
     reset sr p; None
   else
-  let var1 = comment_element2 sr
+  let var1 = single_line_comment_element2 sr
   if Option.isNone var1 then
     reset sr p; None
   else
@@ -387,8 +462,8 @@ and comment (sr:SourceReader) : Comment option =
   if Option.isNone var2 then
     reset sr p; None
   else
-    Some (Comment.Comment (Option.get var1,Option.get var2))
-and comment_element2 (sr:SourceReader) : CommentElement2 option =
+    Some (SingleLineComment.SingleLineComment (Option.get var1,Option.get var2))
+and single_line_comment_element2 (sr:SourceReader) : SingleLineCommentElement2 option =
   let p = position sr
   let pattern = Regex "[^\n]"
   let rec readString s =
@@ -400,6 +475,49 @@ and comment_element2 (sr:SourceReader) : CommentElement2 option =
   | _ ->
   reset sr p
   None
+and multi_line_comment (sr:SourceReader) : MultiLineComment option =
+  let p = position sr
+  let var0 = expectLiteral sr "///"
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = multi_line_comment_element2 sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = expectLiteral sr "\\\\\\"
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+  let var3 = whitespace sr
+  if Option.isNone var3 then
+    reset sr p; None
+  else
+    Some (MultiLineComment.MultiLineComment (Option.get var1,Option.get var3))
+and multi_line_comment_element2 (sr:SourceReader) : MultiLineCommentElement2 option =
+  let p = position sr
+  let rec readList list =
+    match multi_line_comment_element2_expression sr with
+    | Some next -> readList (List.append list [next])
+    | None -> list
+  match readList [] with
+  | list when List.length list >= 0 -> Some list
+  | _ ->
+  reset sr p
+  None
+and multi_line_comment_element2_expression (sr:SourceReader) : MultiLineCommentElement2Expression option =
+  let p = position sr
+  let p0 = position sr
+  let var0 = expectLiteral sr "\\\\\\"
+  if Option.isSome var0 then
+    reset sr p; None
+  else
+  reset sr p0
+  let var1 = expectMatch (Regex ".|\\n") sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+    Some (MultiLineCommentElement2Expression.MultiLineCommentElement2Expression (Option.get var1))
 and todo (sr:SourceReader) : Todo option =
   let p = position sr
   match expectString sr "##TODO##" with
