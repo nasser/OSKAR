@@ -15,9 +15,9 @@ type TransformOperation =
 
 type Transform = 
     { Operation : TransformOperation
-      X: OpaqueExpression
-      Y: OpaqueExpression
-      Z: OpaqueExpression }
+      X: OpaqueExpression option
+      Y: OpaqueExpression option
+      Z: OpaqueExpression option }
 
 type TransformSet = 
     { NumPics : NumPics
