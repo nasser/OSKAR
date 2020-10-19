@@ -96,8 +96,7 @@ type Start = Start of StartElement2
 and StartElement2 = TopLevel list
 and TopLevel = 
 | PythonCode of PythonCode
-| TopLevelCase2 of TopLevelCase2
-and TopLevelCase2 = TopLevelCase2 of PictureDefinition
+| PictureDefinition of PictureDefinition
 and PythonCode = PythonCode of code:PythonCodeCode
 and PythonCodeCode = PythonCodeLine list
 and PythonCodeLine = PythonCodeLine of content:PythonCodeLineContent
@@ -107,7 +106,33 @@ and PictureDefinition =
 | PictureFunction of PictureFunction
 | PictureSelection of PictureSelection
 | PictureCombination of PictureCombination
-and StandardPicture = StandardPicture of Todo
+and StandardPicture = StandardPicture of Identifier * BasisPicture * StandardPictureElement6
+and StandardPictureElement6 = TransformSet list
+and BasisPicture = BasisPicture of Identifier
+and TransformSet = TransformSet of NumPics * TransformSetElement4
+and TransformSetElement4 = Transform list
+and NumPics = NumPics of NumPicsElement3
+and NumPicsElement3 = 
+| Literal of Literal
+| Identifier of Identifier
+and Transform = 
+| ScaleTransform of ScaleTransform
+| TranslateTransform of TranslateTransform
+| RotateTransform of RotateTransform
+and ScaleTransform = ScaleTransform of TransformArguments
+and TranslateTransform = TranslateTransform of TransformArguments
+and RotateTransform = RotateTransform of TransformArguments
+and TransformArguments = TransformArguments of x:TransformArgumentsX * y:TransformArgumentsY * z:TransformArgumentsZ
+and TransformArgumentsX = TransformArgumentsX of Expression option
+and TransformArgumentsY = TransformArgumentsY of Expression option
+and TransformArgumentsZ = TransformArgumentsZ of Expression option
+and UnderscoreEmptyArguments = UnderscoreEmptyArguments
+and Expression = ExpressionExpression list
+and ExpressionExpression = 
+| Simple of ExpressionExpressionSimple
+| Parenthetical of ExpressionExpressionParenthetical
+and ExpressionExpressionSimple = string
+and ExpressionExpressionParenthetical = ExpressionExpressionParenthetical of Expression
 and PictureFunction = PictureFunction of Todo
 and PictureSelection = PictureSelection of Todo
 and PictureCombination = PictureCombination of Todo
@@ -122,8 +147,7 @@ and UnderscoreSemicolon = UnderscoreSemicolon of UnderscoreSemicolonExpression o
 and UnderscoreSemicolonExpression = UnderscoreSemicolonExpression
 and UnderscoreComma = UnderscoreComma of UnderscoreCommaExpression option
 and UnderscoreCommaExpression = UnderscoreCommaExpression
-and Underscore = Underscore of UnderscoreElement1 * UnderscoreElement2
-and UnderscoreElement1 = UnderscoreElement1 of Whitespace option
+and Underscore = Underscore of Whitespace * UnderscoreElement2
 and UnderscoreElement2 = Comment list
 and UnderscoreNewline = UnderscoreNewline of char
 and Whitespace = string
@@ -164,22 +188,11 @@ and top_level (sr:SourceReader) : TopLevel option =
   | Some x -> Some (TopLevel.PythonCode x)
   | _ ->
   reset sr p
-  match top_level_case2 sr with
-  | Some x -> Some (TopLevel.TopLevelCase2 x)
+  match picture_definition sr with
+  | Some x -> Some (TopLevel.PictureDefinition x)
   | _ ->
   reset sr p
   None
-and top_level_case2 (sr:SourceReader) : TopLevelCase2 option =
-  let p = position sr
-  let var0 = picture_definition sr
-  if Option.isNone var0 then
-    reset sr p; None
-  else
-  let var1 = underscore sr
-  if Option.isNone var1 then
-    reset sr p; None
-  else
-    Some (TopLevelCase2.TopLevelCase2 (Option.get var0))
 and python_code (sr:SourceReader) : PythonCode option =
   let p = position sr
   let var0 = expectLiteral sr "***"
@@ -260,11 +273,319 @@ and picture_definition (sr:SourceReader) : PictureDefinition option =
   None
 and standard_picture (sr:SourceReader) : StandardPicture option =
   let p = position sr
-  match todo sr with
-  | Some v -> Some (StandardPicture v)
-  | None ->
+  let var0 = identifier sr
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore_empty_arguments sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = expectLiteral sr "<<"
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+  let var3 = underscore sr
+  if Option.isNone var3 then
+    reset sr p; None
+  else
+  let var4 = basis_picture sr
+  if Option.isNone var4 then
+    reset sr p; None
+  else
+  let var5 = standard_picture_element6 sr
+  if Option.isNone var5 then
+    reset sr p; None
+  else
+    Some (StandardPicture.StandardPicture (Option.get var0,Option.get var4,Option.get var5))
+and standard_picture_element6 (sr:SourceReader) : StandardPictureElement6 option =
+  let p = position sr
+  let rec readList list =
+    match transform_set sr with
+    | Some next -> readList (List.append list [next])
+    | None -> list
+  match readList [] with
+  | list when List.length list >= 0 -> Some list
+  | _ ->
   reset sr p
   None
+and basis_picture (sr:SourceReader) : BasisPicture option =
+  let p = position sr
+  let var0 = identifier sr
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore_empty_arguments sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+    Some (BasisPicture.BasisPicture (Option.get var0))
+and transform_set (sr:SourceReader) : TransformSet option =
+  let p = position sr
+  let var0 = expectLiteral sr "["
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = num_pics sr
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+  let var3 = transform_set_element4 sr
+  if Option.isNone var3 then
+    reset sr p; None
+  else
+  let var4 = expectLiteral sr "]"
+  if Option.isNone var4 then
+    reset sr p; None
+  else
+  let var5 = underscore sr
+  if Option.isNone var5 then
+    reset sr p; None
+  else
+    Some (TransformSet.TransformSet (Option.get var2,Option.get var3))
+and transform_set_element4 (sr:SourceReader) : TransformSetElement4 option =
+  let p = position sr
+  let rec readList list =
+    match transform sr with
+    | Some next -> readList (List.append list [next])
+    | None -> list
+  match readList [] with
+  | list when List.length list >= 0 -> Some list
+  | _ ->
+  reset sr p
+  None
+and num_pics (sr:SourceReader) : NumPics option =
+  let p = position sr
+  let var0 = expectLiteral sr "{"
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = num_pics_element3 sr
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+  let var3 = expectLiteral sr "}"
+  if Option.isNone var3 then
+    reset sr p; None
+  else
+  let var4 = underscore sr
+  if Option.isNone var4 then
+    reset sr p; None
+  else
+    Some (NumPics.NumPics (Option.get var2))
+and num_pics_element3 (sr:SourceReader) : NumPicsElement3 option =
+  let p = position sr
+  match literal sr with
+  | Some x -> Some (NumPicsElement3.Literal x)
+  | _ ->
+  reset sr p
+  match identifier sr with
+  | Some x -> Some (NumPicsElement3.Identifier x)
+  | _ ->
+  reset sr p
+  None
+and transform (sr:SourceReader) : Transform option =
+  let p = position sr
+  match scale_transform sr with
+  | Some x -> Some (Transform.ScaleTransform x)
+  | _ ->
+  reset sr p
+  match translate_transform sr with
+  | Some x -> Some (Transform.TranslateTransform x)
+  | _ ->
+  reset sr p
+  match rotate_transform sr with
+  | Some x -> Some (Transform.RotateTransform x)
+  | _ ->
+  reset sr p
+  None
+and scale_transform (sr:SourceReader) : ScaleTransform option =
+  let p = position sr
+  let var0 = expectLiteral sr "*"
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = transform_arguments sr
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+    Some (ScaleTransform.ScaleTransform (Option.get var2))
+and translate_transform (sr:SourceReader) : TranslateTransform option =
+  let p = position sr
+  let var0 = expectLiteral sr "+"
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = transform_arguments sr
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+    Some (TranslateTransform.TranslateTransform (Option.get var2))
+and rotate_transform (sr:SourceReader) : RotateTransform option =
+  let p = position sr
+  let var0 = expectLiteral sr "@"
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = transform_arguments sr
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+    Some (RotateTransform.RotateTransform (Option.get var2))
+and transform_arguments (sr:SourceReader) : TransformArguments option =
+  let p = position sr
+  let var0 = expectLiteral sr "("
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = transform_arguments_x sr
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+  let var3 = expectLiteral sr ","
+  if Option.isNone var3 then
+    reset sr p; None
+  else
+  let var4 = underscore sr
+  if Option.isNone var4 then
+    reset sr p; None
+  else
+  let var5 = transform_arguments_y sr
+  if Option.isNone var5 then
+    reset sr p; None
+  else
+  let var6 = expectLiteral sr ","
+  if Option.isNone var6 then
+    reset sr p; None
+  else
+  let var7 = underscore sr
+  if Option.isNone var7 then
+    reset sr p; None
+  else
+  let var8 = transform_arguments_z sr
+  if Option.isNone var8 then
+    reset sr p; None
+  else
+  let var9 = expectLiteral sr ")"
+  if Option.isNone var9 then
+    reset sr p; None
+  else
+  let var10 = underscore sr
+  if Option.isNone var10 then
+    reset sr p; None
+  else
+    Some (TransformArguments.TransformArguments (Option.get var2,Option.get var5,Option.get var8))
+and transform_arguments_x (sr:SourceReader) : TransformArgumentsX option =
+  let p = position sr
+  match expression sr with
+  | Some v -> Some (TransformArgumentsX (Some v))
+  | None -> Some (TransformArgumentsX None)
+and transform_arguments_y (sr:SourceReader) : TransformArgumentsY option =
+  let p = position sr
+  match expression sr with
+  | Some v -> Some (TransformArgumentsY (Some v))
+  | None -> Some (TransformArgumentsY None)
+and transform_arguments_z (sr:SourceReader) : TransformArgumentsZ option =
+  let p = position sr
+  match expression sr with
+  | Some v -> Some (TransformArgumentsZ (Some v))
+  | None -> Some (TransformArgumentsZ None)
+and underscore_empty_arguments (sr:SourceReader) : UnderscoreEmptyArguments option =
+  let p = position sr
+  let var0 = expectLiteral sr "("
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = expectLiteral sr ")"
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+  let var3 = underscore sr
+  if Option.isNone var3 then
+    reset sr p; None
+  else
+    Some (UnderscoreEmptyArguments.UnderscoreEmptyArguments)
+and expression (sr:SourceReader) : Expression option =
+  let p = position sr
+  let rec readList list =
+    match expression_expression sr with
+    | Some next -> readList (List.append list [next])
+    | None -> list
+  match readList [] with
+  | list when List.length list >= 1 -> Some list
+  | _ ->
+  reset sr p
+  None
+and expression_expression (sr:SourceReader) : ExpressionExpression option =
+  let p = position sr
+  match expression_expression_simple sr with
+  | Some x -> Some (ExpressionExpression.Simple x)
+  | _ ->
+  reset sr p
+  match expression_expression_parenthetical sr with
+  | Some x -> Some (ExpressionExpression.Parenthetical x)
+  | _ ->
+  reset sr p
+  None
+and expression_expression_simple (sr:SourceReader) : ExpressionExpressionSimple option =
+  let p = position sr
+  let pattern = Regex "[^,\(\)]"
+  let rec readString s =
+    match expectMatch pattern sr with
+    | Some c -> readString (s + (string c))
+    | None -> s
+  match readString "" with
+  | s when s.Length >= 1 -> Some s
+  | _ ->
+  reset sr p
+  None
+and expression_expression_parenthetical (sr:SourceReader) : ExpressionExpressionParenthetical option =
+  let p = position sr
+  let var0 = expectLiteral sr "("
+  if Option.isNone var0 then
+    reset sr p; None
+  else
+  let var1 = underscore sr
+  if Option.isNone var1 then
+    reset sr p; None
+  else
+  let var2 = expression sr
+  if Option.isNone var2 then
+    reset sr p; None
+  else
+  let var3 = expectLiteral sr ")"
+  if Option.isNone var3 then
+    reset sr p; None
+  else
+    Some (ExpressionExpressionParenthetical.ExpressionExpressionParenthetical (Option.get var2))
 and picture_function (sr:SourceReader) : PictureFunction option =
   let p = position sr
   match todo sr with
@@ -321,7 +642,7 @@ and number (sr:SourceReader) : Number option =
     Some (Number.Number (Option.get var0))
 and symbol (sr:SourceReader) : Symbol option =
   let p = position sr
-  let pattern = Regex "[^ \(\),#=\*\+\-\[\]]"
+  let pattern = Regex "[^ \(\),#=\*\+\-\[\]\{\}]"
   let rec readString s =
     match expectMatch pattern sr with
     | Some c -> readString (s + (string c))
@@ -393,7 +714,7 @@ and underscore_comma_expression (sr:SourceReader) : UnderscoreCommaExpression op
     Some (UnderscoreCommaExpression.UnderscoreCommaExpression)
 and underscore (sr:SourceReader) : Underscore option =
   let p = position sr
-  let var0 = underscore__element1 sr
+  let var0 = whitespace sr
   if Option.isNone var0 then
     reset sr p; None
   else
@@ -402,11 +723,6 @@ and underscore (sr:SourceReader) : Underscore option =
     reset sr p; None
   else
     Some (Underscore.Underscore (Option.get var0,Option.get var1))
-and underscore__element1 (sr:SourceReader) : UnderscoreElement1 option =
-  let p = position sr
-  match whitespace sr with
-  | Some v -> Some (UnderscoreElement1 (Some v))
-  | None -> Some (UnderscoreElement1 None)
 and underscore__element2 (sr:SourceReader) : UnderscoreElement2 option =
   let p = position sr
   let rec readList list =
@@ -520,7 +836,7 @@ and multi_line_comment_element2_expression (sr:SourceReader) : MultiLineCommentE
     Some (MultiLineCommentElement2Expression.MultiLineCommentElement2Expression (Option.get var1))
 and todo (sr:SourceReader) : Todo option =
   let p = position sr
-  match expectString sr "##TODO##" with
+  match expectString sr "TODO" with
   | Some v -> Some (ArzLiteral v)
   | None ->
   reset sr p
