@@ -8,7 +8,7 @@ numCols = 7
 ***
 
 Slabs_array << Cube [ {1}
-                             a = (rowNum*numCols) + colNum  # compute single index
+                             (a = (rowNum*numCols) + colNum)  # compute single index
                                                             # for both loops
                              +(-.5, -.5,  0)    # move to center
                              *( .05, .1, .1)       # scale to thin slab
