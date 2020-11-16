@@ -1,0 +1,18 @@
+
+# test_case_03.osk
+# picture definition with 2nd picture as basis
+
+Slab() << Cube() [ {1}
+                      +(-.5, -.5, -.5)   # move to origin (0,0,0)
+	  				  *( .1,  .5,  .5)   # scale to thin slab
+                      +( .5,  .5,   0)   # move back to viewport
+                ]
+
+Scene() << Slab() [ {1}
+                      +( -.5, -.5, -.5)   # move to origin (0,0,0)
+                      *(  .5,  .5,  .5)   # scale down
+                      @( -50,  30,   0)   # rotate
+                     + (  .5,  .5,  .5)   # move back to viewport
+                  ]
+
+Film() ::: Scene()

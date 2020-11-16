@@ -1,0 +1,22 @@
+
+# test_case_09.osk
+# CSG cases
+
+***
+d = 1.5   # distance of spread from origin
+***
+Ball() << Sphere() [ {1} +( 0, .6, 0) ]   # move sphere up
+
+Pic_Union()        << Cube() + Ball()     # the four cases of boolean combinations
+Pic_Subtract_A-B() << Cube() - Ball()
+Pic_Subtract_B-A() << Ball() - Cube()
+Pic_Intersection() << Cube() n Ball()
+
+Pic1() << Pic_Union()        [ {1} +(  0, 0, -d) ]  # spread out the 4 cases from the center
+Pic2() << Pic_Subtract_A-B() [ {1} +( -d, 0,  0) ]
+Pic3() << Pic_Subtract_B-A() [ {1} +(  0, 0,  d) ]
+Pic4() << Pic_Intersection() [ {1} +(  d, 0,  0) ]
+
+Scene() << Pic1() + Pic2() + Pic3() + Pic4()
+
+Film() ::: Scene()

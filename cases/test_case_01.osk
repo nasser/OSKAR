@@ -1,0 +1,8 @@
+
+# test_case_01.osk
+# simple picture definition;  
+# primitive with no transformations
+
+Scene() << Cube() [ {1} ]
+
+Film() ::: Scene()

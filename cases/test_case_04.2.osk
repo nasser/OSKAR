@@ -1,0 +1,16 @@
+
+# test case 04.2.osk
+# pictured in test_case_07.png)
+#  Animation:  parameters defined as f(time)
+
+Rod() << Cube() [ {1}
+					+( -.5, -.5, -.5)  # move to origin (0,0,0)
+                    *( .02,  .5, .02)    # scale to thin rod
+                    +(  .5,  .5,  .5)  # move back to viewport
+                ]
+Sin_curv() << Rod() [ {25} +( i*1.0, sin(i*360)/3,  ) ] # moveX -> horizontal row of rods
+                                                        # moveY as sin(index)
+                                                        # draws sin wave
+Film() ::: Sin_curv()
+
+

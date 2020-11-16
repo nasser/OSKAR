@@ -1,0 +1,27 @@
+# test_case_07.osk
+# picture functions
+
+***                               # Begin Python Block
+import math
+number_of_pics = 50                   # variable definition
+
+def fun(x):                           # function definition
+      return (sin(x))
+
+def myTY1(x):
+      return (.5+(sin(x*360)/2) )     # function definition
+***                               # End Python Block
+
+# Picture_Function defined
+Funplot(TY) <<< cube [ {1}              *(.01, 0.4, .01)    ] # scale to thin rod
+                     [ {number_of_pics} +( i*1.0, TY(i), 0) ] # move in y as function of (i)
+                     [ {1}              *(1, .5, 1)         ] # scale to half height
+
+# Picture_Function called in picture definition:
+Curv()  <<  Funplot(myTY1)[{1}]
+Scene() << Curv() [ {1}
+                       +( -.5, -.5, -.5)   # move to center
+                       @( -30,   0,   0)   # rotate
+                       +(  .5,  .5,  .5)   # move back to viewport
+                  ]
+Film() ::: Scene()
