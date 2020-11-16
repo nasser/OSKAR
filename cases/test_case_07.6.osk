@@ -1,5 +1,5 @@
 
-# test_case_07.5.osk
+# test_case_07.6.osk
 # picture function with basis picture as argument
 
 
@@ -12,13 +12,15 @@ Slabs(Basis) << Basis [ {1}
                             @( -45,   0,   0)     # rotate around x axis
                             +(  .5,  .5,  .5)   # move back to viewport
                         ]
-              [ {5} +( -.5 + (i*1), 0,  0) ]  # moveX as function(iteration)
-              [ {5} +(  0, -.5 + (i*1), 0) ]  # moveY as function(iteration)
+              [ {4} +( -.5 + (i*1), 0,  0) ]  # moveX as function(iteration)
+              [ {4} +(  0, -.5 + (i*1), 0) ]  # moveY as function(iteration)
 
-#call slabs function with argument: cylinder; produces test_case_07.5a.png
-Scene << Slabs(Cylinder) [ {1} ]
-Film :: Scene
+Pic_list <<< [ Cube, Cylinder, Sphere ]
+ 
+# call slabs function with argument, Cylinder; produces test_case_07.5a.png
+Scene << Slabs(pic_list(1)) [ {1} ]
 
-#call slabs function with argument: cube    ; produces test_case_07.5b.png
-Scene << Slabs(Cube) [ {1} ]
-Film :: Scene
+# call slabs function with argument, Cube; produces test_case_07.5b.png
+Scene << Slabs(pic_list(0)) [ {1} ]
+
+

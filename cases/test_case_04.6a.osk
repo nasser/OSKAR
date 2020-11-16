@@ -7,8 +7,8 @@ numRows = 5
 numCols = 7
 ***
 
-Slabs_array() << Cube() [ {1}
-                             (a = (rowNum*numCols) + colNum)  # compute single index
+Slabs_array << Cube [ {1}
+                             a = (rowNum*numCols) + colNum  # compute single index
                                                             # for both loops
                              +(-.5, -.5,  0)    # move to center
                              *( .05, .1, .1)       # scale to thin slab
@@ -19,7 +19,7 @@ Slabs_array() << Cube() [ {1}
               [ {numCols, colNum} +( -.5 + (colNum*1), 0,  0) ]  # moveX as f(colNum)
               [ {numRows, rowNum} +(  0, -.5 + (rowNum*1), 0) ]  # moveY as f(rowNum)
 
-Film() :: Slabs_array() [ Frames = 120 ]
+Film :: Slabs_array [ Frames = 120 ]
 
 
 

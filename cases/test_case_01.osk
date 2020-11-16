@@ -3,6 +3,6 @@
 # simple picture definition;  
 # primitive with no transformations
 
-Scene() << Cube() [ {1} ]
+Scene << Cube [ {1} ]
 
-Film() :: Scene()
+Film :: Scene

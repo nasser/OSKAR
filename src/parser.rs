@@ -35,8 +35,6 @@ mod tests {
     #[test]
     fn test_case_03() { test_compiles("cases/test_case_03.osk"); }
     #[test]
-    fn test_case_04() { test_compiles("cases/test_case_04.osk"); }
-    #[test]
     fn test_case_04_1() { test_compiles("cases/test_case_04.1.osk"); }
     #[test]
     fn test_case_04_2() { test_compiles("cases/test_case_04.2.osk"); }
@@ -47,29 +45,17 @@ mod tests {
     #[test]
     fn test_case_04_6a() { test_compiles("cases/test_case_04.6a.osk"); }
     #[test]
-    fn test_case_04_6() { test_compiles("cases/test_case_04.6.osk"); }
-    #[test]
     fn test_case_04a() { test_compiles("cases/test_case_04a.osk"); }
-    #[test]
-    fn test_case_04b() { test_compiles("cases/test_case_04b.osk"); }
-    #[test]
-    fn test_case_06_a() { test_compiles("cases/test_case_06.a.osk"); }
-    #[test]
-    fn test_case_06() { test_compiles("cases/test_case_06.osk"); }
     #[test]
     fn test_case_07_5a() { test_compiles("cases/test_case_07.5a.osk"); }
     #[test]
     fn test_case_07_5b() { test_compiles("cases/test_case_07.5b.osk"); }
     #[test]
-    fn test_case_07_5_for_pix() { test_compiles("cases/test_case_07.5 for pix.osk"); }
-    #[test]
     fn test_case_07_5() { test_compiles("cases/test_case_07.5.osk"); }
+    #[test]
+    fn test_case_07_6() { test_compiles("cases/test_case_07.6.osk"); }
     #[test]
     fn test_case_07() { test_compiles("cases/test_case_07.osk"); }
     #[test]
-    fn test_case_08() { test_compiles("cases/test_case_08.osk"); }
-    #[test]
     fn test_case_09() { test_compiles("cases/test_case_09.osk"); }
-    #[test]
-    fn test_case_10() { test_compiles("cases/test_case_10.osk"); }
 }

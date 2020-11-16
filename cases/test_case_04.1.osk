@@ -9,14 +9,14 @@ def fun(x):               # function definition
       return (math.sin(x))
 ***                     # End Python Block
 
-Slab() << Cube() [ {number_of_pics} * ( .02, .4, .02)    # scale to thin rod
+Slab << Cube [ {number_of_pics} * ( .02, .4, .02)    # scale to thin rod
                     + ( i*1.0, fun(i*360), 0) # move as function(iteration)
              ]
 
-Scene() << Slab() [ {1}
+Scene << Slab [ {1}
                       + (-.5, -.5, 0)   # move to center
                       @ ( 30, 0,  0)  # rotate
                       + ( .5,  .5, 0)   # move back to viewport
                 ]
 
-Film() :: Scene()
+Film :: Scene

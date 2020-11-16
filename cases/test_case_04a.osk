@@ -4,7 +4,7 @@
 # parameter as f(i)
 
 
-Scene() << Cube() [ {5}
+Scene << Cube [ {5}
                       +(   -.5, -.5, -.5) # move to origin (0,0,0)
 					  *(    .1,  .5,  .5)    # scale to thin slab
                       @(   -50,  30,   0)    # rotate
@@ -15,7 +15,7 @@ Scene() << Cube() [ {5}
                       +(    .5,  .5,  .5)  # move back to center of viewport
  			 	 ]
 
-Film() :: Scene()
+Film :: Scene
 
 
 
