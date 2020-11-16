@@ -8,7 +8,7 @@ numCols = 7
 ***
 
 Slabs_array() << Cube() [ {1}                                         # 1st
-                             a = (rowNum*numCols) + colNum
+                             (a = (rowNum*numCols) + colNum)
                              +(-.5, -.5,  0)    # move to center        # Transform
                              *( .05, .1, .1)       # scale to thin slab    # Set
                              @(  0, (a)*(45), 0)   # rotate around y axis

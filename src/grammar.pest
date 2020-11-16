@@ -14,7 +14,7 @@ picture_definition  = { standard_picture | picture_function | picture_selection 
 
 standard_picture    = { identifier ~ empty_paramaters ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)* }
 basis_picture       = { identifier ~ parameters }
-transform_set       = { "[" ~ num_pics ~ transform* ~ "]" }
+transform_set       = { "[" ~ num_pics ~ expression_parens? ~ transform* ~ "]" }
 num_pics            = { "{" ~ (number | identifier) ~ "}" }
 transform           = _{ scale_transform | translate_transform | rotate_transform }
 scale_transform     = { "*" ~ transform_arguments }
@@ -26,9 +26,9 @@ transform_argument  = _{ expression | blank_argument }
 blank_argument      = { WHITESPACE* }
 
 expression          = @{ (expression_simple | expression_parens | expression_brackets )+ }
-expression_simple   = { (!("," | "(" | ")" | "[" | "]") ~ ANY)+ }
-expression_parens   = { ("(" ~ WHITESPACE* ~ expression ~ WHITESPACE* ~ ")")+ }
-expression_brackets = { ("[" ~ WHITESPACE* ~ expression ~ WHITESPACE* ~ "]")+ }
+expression_simple   = @{ (!("," | "(" | ")" | "[" | "]") ~ ANY)+ }
+expression_parens   = @{ ("(" ~ WHITESPACE* ~ expression ~ WHITESPACE* ~ ")")+ }
+expression_brackets = @{ ("[" ~ WHITESPACE* ~ expression ~ WHITESPACE* ~ "]")+ }
 
 picture_function    = { identifier ~ parameters ~ "<<<" ~ basis_picture ~ transform_set* }
 
