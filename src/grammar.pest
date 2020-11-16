@@ -1,8 +1,8 @@
 start               = _{ SOI ~ top_level* ~ EOI }
 top_level           = _{ python_code | picture_definition | film } 
 
-film                = { identifier ~ empty_paramaters ~ "::" ~ film_picture ~ film_parameters? }
-film_picture        = { identifier ~ parameters }
+film                = { identifier ~ empty_paramaters? ~ "::" ~ film_picture ~ film_parameters? }
+film_picture        = { identifier ~ parameters? }
 film_parameters     = { "[" ~ film_parameter? ~ ("," ~ film_parameter)*  ~ "]"}
 film_parameter      = { identifier ~ "=" ~ expression }
 
@@ -12,8 +12,8 @@ python_delimeter    = _{ "***" }
 
 picture_definition  = { standard_picture | picture_function | picture_selection  }
 
-standard_picture    = { identifier ~ empty_paramaters ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)* }
-basis_picture       = { identifier ~ parameters }
+standard_picture    = { identifier ~ empty_paramaters? ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)* }
+basis_picture       = { identifier ~ parameters? }
 transform_set       = { "[" ~ num_pics ~ expression_parens? ~ transform* ~ "]" }
 num_pics            = { "{" ~ (number | identifier) ~ "}" }
 transform           = _{ scale_transform | translate_transform | rotate_transform }
@@ -30,15 +30,15 @@ expression_simple   = @{ (!("," | "(" | ")" | "[" | "]") ~ ANY)+ }
 expression_parens   = @{ ("(" ~ WHITESPACE* ~ expression ~ WHITESPACE* ~ ")")+ }
 expression_brackets = @{ ("[" ~ WHITESPACE* ~ expression ~ WHITESPACE* ~ "]")+ }
 
-picture_function    = { identifier ~ parameters ~ "<<<" ~ basis_picture ~ transform_set* }
+picture_function    = { identifier ~ parameters? ~ "<<<" ~ basis_picture ~ transform_set* }
 
-picture_selection   = { identifier ~ empty_paramaters ~ "<<<" ~ picture_list }
+picture_selection   = { identifier ~ empty_paramaters? ~ "<<<" ~ picture_list }
 
 picture_list        = _{ "[" ~ picture_list_item? ~ ("," ~ picture_list_item)* ~ "]" }
-picture_list_item   = { identifier ~ empty_paramaters }
+picture_list_item   = { identifier ~ empty_paramaters? }
 
 csg_operation       = { csg_operator ~ csg_operand }
-csg_operand         = _{ identifier ~ parameters }
+csg_operand         = _{ identifier ~ parameters? }
 csg_operator        = { "+" | "-" | "n" }
 
 parameters          = { "(" ~ expression? ~ ("," ~ expression)* ~ ")" }
