@@ -8,7 +8,7 @@ Rod() << Cube() [ {1}
                     *( .02,  .5, .02)    # scale to thin rod
                     +(  .5,  .5,  .5)  # move back to viewport
                 ]
-Sin_curv() << Rod() [ {50} +( i*1.0, (sin((i*360)+(t*360))/3, 0) ]
+Sin_curv() << Rod() [ {50} +( i*1.0, (sin((i*360)+(t*360))/3), 0) ]
                                        #  moveX -> horizontal row of rods
                                        #  moveY as sin(index) + sin(time)
                                        #  draws a moving sin wave
