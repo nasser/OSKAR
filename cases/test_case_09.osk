@@ -19,4 +19,4 @@ Pic4() << Pic_Intersection() [ {1} +(  d, 0,  0) ]
 
 Scene() << Pic1() + Pic2() + Pic3() + Pic4()
 
-Film() ::: Scene()
+Film() :: Scene()

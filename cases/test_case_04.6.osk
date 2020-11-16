@@ -20,7 +20,7 @@ Slabs_array() << Cube() [ {1}                                         # 1st
               [ {numCols} +(  0, -.5 + (i*1), 0) ]  # moveY as function(i) # 3rd
                                                                      # Transform Set
 
-Film() ::: Slabs_array() [ {120} ]
+Film() :: Slabs_array() [ {120} ]
 
 
 

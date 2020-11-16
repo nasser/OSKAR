@@ -19,7 +19,7 @@ Slabs_array() << Cube() [ {1}
               [ {numCols, colNum} +( -.5 + (colNum*1), 0,  0) ]  # moveX as f(colNum)
               [ {numRows, rowNum} +(  0, -.5 + (rowNum*1), 0) ]  # moveY as f(rowNum)
 
-Film() ::: Slabs_array() [ Frames = 120 ]
+Film() :: Slabs_array() [ Frames = 120 ]
 
 
 

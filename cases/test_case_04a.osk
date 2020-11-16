@@ -15,7 +15,7 @@ Scene() << Cube() [ {5}
                       +(    .5,  .5,  .5)  # move back to center of viewport
  			 	 ]
 
-Film() ::: Scene()
+Film() :: Scene()
 
 
 

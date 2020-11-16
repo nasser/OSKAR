@@ -9,5 +9,5 @@ Scene() << Cube() [ {1}
                       +( .5,  .5,   0)   # move back to viewport
                   ]
 
-Film() ::: Scene()
+Film() :: Scene()
 

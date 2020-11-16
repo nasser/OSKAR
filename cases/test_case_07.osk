@@ -24,4 +24,4 @@ Scene() << Curv() [ {1}
                        @( -30,   0,   0)   # rotate
                        +(  .5,  .5,  .5)   # move back to viewport
                   ]
-Film() ::: Scene()
+Film() :: Scene()

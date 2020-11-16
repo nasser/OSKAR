@@ -11,6 +11,6 @@ Rod() << Cube() [ {1}
 Sin_curv() << Rod() [ {25} +( i*1.0, sin(i*360)/3,  ) ] # moveX -> horizontal row of rods
                                                         # moveY as sin(index)
                                                         # draws sin wave
-Film() ::: Sin_curv()
+Film() :: Sin_curv()
 
 
