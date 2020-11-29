@@ -9,7 +9,7 @@ pub enum TopLevel {
 #[derive(Debug)]
 pub enum Definition {
     Standard(Picture),
-    Function,
+    Function(Picture),
     Selection
 }
 
@@ -23,7 +23,7 @@ pub struct Picture {
 
 #[derive(Debug)]
 pub enum Operation {
-    TransformSets(TransformSet),
+    TransformSet(TransformSet),
     Csg(Csg)
 }
 
@@ -37,7 +37,7 @@ pub enum Csg {
 #[derive(Debug)]
 pub struct TransformSet {
     pub num_pics: NumPics,
-    pub top_level_expression: String,
+    pub top_level_expression: Option<String>,
     pub transforms: Vec<Transform>
 }
 
