@@ -10,7 +10,13 @@ pub enum TopLevel {
 pub enum Definition {
     Standard(Picture),
     Function(Picture),
-    Selection
+    Selection(PictureList)
+}
+
+#[derive(Debug)]
+pub struct PictureList {
+    pub identifier: String,
+    pub invokes: Vec<Invoke>
 }
 
 #[derive(Debug)]

@@ -43,19 +43,19 @@ fn print_error(e: Error<Rule>, path: &str) {
     panic!("could not parse")
 }
 
-fn print_parse_tree(tree: Pair<Rule>, indent: usize) {
-    print!("\n{}{:?}", " ".repeat(indent), tree.as_rule());
-    let mut child_count = 0;
-    let span = tree.as_str();
-    for t in tree.into_inner() {
-        print_parse_tree(t, indent + 2);
-        child_count += 1;
-    }
+// fn print_parse_tree(tree: Pair<Rule>, indent: usize) {
+//     print!("\n{}{:?}", " ".repeat(indent), tree.as_rule());
+//     let mut child_count = 0;
+//     let span = tree.as_str();
+//     for t in tree.into_inner() {
+//         print_parse_tree(t, indent + 2);
+//         child_count += 1;
+//     }
 
-    if child_count == 0 {
-        print!(": {:?}", span);
-    }
-}
+//     if child_count == 0 {
+//         print!(": {:?}", span);
+//     }
+// }
 
 fn parse_source<'a>(source: &'a str, path: &str) -> Pairs<'a, Rule> {
     let sp = OskarParser::parse(Rule::start, source);
@@ -84,9 +84,9 @@ fn analyze_parameters(pairs:&mut Pairs<Rule>) -> Vec<String> {
 }
 
 fn analyze_invoke(pairs:&mut Pairs<Rule>) -> ast::Invoke {
-    let mut inner = pairs.next().unwrap().into_inner();
-    let identifier = inner.next().unwrap().as_str().to_string();
-    let parameters = analyze_parameters(&mut inner);
+    // let mut inner = pairs.next().unwrap().into_inner();
+    let identifier = pairs.next().unwrap().as_str().to_string();
+    let parameters = analyze_parameters(pairs);
     ast::Invoke { identifier, parameters }
 }
 
@@ -108,7 +108,7 @@ fn analyze_film(pairs:&mut Pairs<Rule>) -> ast::Film {
     if film_identifier.as_str() != "Film" {
         panic_span(film_identifier.as_span(), "Film name must be exactly 'Film'");
     }
-    let picture = analyze_invoke(pairs);
+    let picture = analyze_invoke(&mut pairs.next().unwrap().into_inner());
     let film_parameters = analyze_film_parameters(pairs);
 
     ast::Film { picture, film_parameters }
@@ -200,13 +200,28 @@ fn analyze_transform_sets(pairs:&mut Pairs<Rule>) -> Vec<ast::Operation> {
     operations
 }
 
+fn analyze_csg_operation(pairs:&mut Pairs<Rule>) -> ast::Csg {
+    match pairs.next().unwrap().as_str() {
+        "+" => ast::Csg::Union(analyze_invoke(pairs)),
+        "-" => ast::Csg::Difference(analyze_invoke(pairs)),
+        "n" => ast::Csg::Intersection(analyze_invoke(pairs)),
+        x => unreachable!("unsupported csg operator {:?}", x)
+    }
+}
+
 fn analyze_csg_operations(pairs:&mut Pairs<Rule>) -> Vec<ast::Operation> {
+    let mut operations:Vec<ast::Operation> = vec![];
+
     for pair in pairs {
         if pair.as_rule() != Rule::csg_operation {
             panic_span(pair.as_span(), "Cannot mix transform sets and CSG operations");
         }
+
+        let csg_operation = ast::Operation::Csg(analyze_csg_operation(&mut pair.into_inner()));
+        operations.push(csg_operation);
     }
-    panic!("CSG Operations")
+
+    operations
 }
 
 fn analyze_operations(pairs:&mut Pairs<Rule>) -> Vec<ast::Operation> {
@@ -223,17 +238,29 @@ fn analyze_picture(pairs:&mut Pairs<Rule>) -> ast::Picture {
     let mut pairs = pairs;
     let identifier = pairs.next().unwrap().as_str().to_string();
     let parameters = analyze_parameters(&mut pairs);
-    let basis = analyze_invoke(&mut pairs);
+    let basis = analyze_invoke(&mut pairs.next().unwrap().into_inner());
     let operations = analyze_operations(&mut pairs);
 
     ast::Picture { identifier, parameters, basis, operations }
+}
+
+fn analyze_picture_list(pairs:&mut Pairs<Rule>) -> ast::PictureList {
+    let identifier = pairs.next().unwrap().as_str().to_string();
+
+    let mut invokes:Vec<ast::Invoke> = vec![];
+    invokes.push(analyze_invoke(pairs));
+    while pairs.peek().is_some() {
+        invokes.push(analyze_invoke(pairs))
+    }
+
+    ast::PictureList { identifier, invokes }
 }
 
 fn analyze_definition(pairs:&mut Pairs<Rule>) -> ast::Definition {
     match pairs.peek().unwrap().as_rule() {
         Rule::standard_picture => ast::Definition::Standard(analyze_picture(&mut pairs.next().unwrap().into_inner())),
         Rule::picture_function => ast::Definition::Function(analyze_picture(&mut pairs.next().unwrap().into_inner())),
-        Rule::picture_selection => panic!("Picture Lists"),
+        Rule::picture_selection => ast::Definition::Selection(analyze_picture_list(&mut pairs.next().unwrap().into_inner())),
         _ => unreachable!()
     }
 }
