@@ -9,6 +9,7 @@ use pest::iterators::*;
 mod parser;
 mod ast;
 
+use parser::{OskarParser, Rule};
 use std::fs;
 
 use clap::Clap;
@@ -30,10 +31,6 @@ struct CompileOpts {
     /// The file to compile
     file: String
 }
-
-#[derive(Parser, Debug)]
-#[grammar = "grammar.pest"]
-struct OskarParser;
 
 fn print_error(e: Error<Rule>, path: &str) {
     match e.line_col {

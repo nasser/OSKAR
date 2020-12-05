@@ -1,6 +1,6 @@
 #[derive(Parser, Debug)]
 #[grammar = "grammar.pest"]
-struct OskarParser;
+pub struct OskarParser;
 
 #[cfg(test)]
 mod tests {
