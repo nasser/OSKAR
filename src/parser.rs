@@ -1,6 +1,29 @@
+use pest::error::*;
+use pest::Parser;
+use pest::iterators::*;
+
 #[derive(Parser, Debug)]
 #[grammar = "grammar.pest"]
 pub struct OskarParser;
+
+fn print_error(e: Error<Rule>, path: &str) {
+    match e.line_col {
+        LineColLocation::Pos((l, c)) => println!("{} ({}:{}:{})", e, path, l, c),
+        LineColLocation::Span((sl, sc), _) => println!("{} ({}:{}:{})", e, path, sl, sc),
+    }
+    panic!("could not parse")
+}
+
+pub fn parse_source<'a>(source: &'a str, path: &str) -> Pairs<'a, Rule> {
+    let sp = OskarParser::parse(Rule::start, source);
+    match sp {
+        Ok(res) => res,
+        Err(e) => {
+            print_error(e, &path);
+            panic!("could not parse")
+        },
+    }
+}
 
 #[cfg(test)]
 mod tests {
