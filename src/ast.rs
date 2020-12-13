@@ -29,13 +29,13 @@ pub struct Picture {
     pub identifier: String,
     pub parameters: Vec<String>,
     pub basis: Invoke,
-    pub operations: Vec<Operation>
+    pub operations: Operations
 }
 
 #[derive(Debug)]
-pub enum Operation {
-    TransformSet(TransformSet),
-    Csg(Csg)
+pub enum Operations {
+    TransformSet(Vec<TransformSet>),
+    Csg(Vec<Csg>)   
 }
 
 #[derive(Debug)]
@@ -200,18 +200,18 @@ fn analyze_transform_set(pairs:&mut Pairs<Rule>) -> TransformSet {
     TransformSet { num_pics, top_level_expression, transforms }
 }
 
-fn analyze_transform_sets(pairs:&mut Pairs<Rule>) -> Vec<Operation> {
-    let mut operations:Vec<Operation> = vec![];
+fn analyze_transform_sets(pairs:&mut Pairs<Rule>) -> Operations {
+    let mut operations:Vec<TransformSet> = vec![];
     
     for pair in pairs {
         if pair.as_rule() != Rule::transform_set {
             panic_span(pair.as_span(), "Cannot mix transform sets and CSG operations");
         }
-        let transform_set = Operation::TransformSet(analyze_transform_set(&mut pair.into_inner()));
+        let transform_set = analyze_transform_set(&mut pair.into_inner());
         operations.push(transform_set);
     }
 
-    operations
+    Operations::TransformSet(operations)
 }
 
 fn analyze_csg_operation(pairs:&mut Pairs<Rule>) -> Csg {
@@ -223,22 +223,22 @@ fn analyze_csg_operation(pairs:&mut Pairs<Rule>) -> Csg {
     }
 }
 
-fn analyze_csg_operations(pairs:&mut Pairs<Rule>) -> Vec<Operation> {
-    let mut operations:Vec<Operation> = vec![];
+fn analyze_csg_operations(pairs:&mut Pairs<Rule>) -> Operations {
+    let mut operations:Vec<Csg> = vec![];
 
     for pair in pairs {
         if pair.as_rule() != Rule::csg_operation {
             panic_span(pair.as_span(), "Cannot mix transform sets and CSG operations");
         }
 
-        let csg_operation = Operation::Csg(analyze_csg_operation(&mut pair.into_inner()));
+        let csg_operation = analyze_csg_operation(&mut pair.into_inner());
         operations.push(csg_operation);
     }
 
-    operations
+    Operations::Csg(operations)
 }
 
-fn analyze_operations(pairs:&mut Pairs<Rule>) -> Vec<Operation> {
+fn analyze_operations(pairs:&mut Pairs<Rule>) -> Operations {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::transform_set =>
             analyze_transform_sets(pairs),
