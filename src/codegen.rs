@@ -352,14 +352,18 @@ fn transform_set_nodes(
 }
 
 fn establish_out(xform: &osk::TransformSet, i: usize) -> Vec<py::Statement> {
-    let last_node = xform_set_node_name(i, xform.transforms.len() - 1);
-    if xform.iteration {
-        vec![
-            statement(fcall(name("connect"), vec![iter_begin_name(i), last_node])),
-            assign(out_name(i), iter_end_name(i)),
-        ]
+    if xform.transforms.len() == 0 {
+        vec![assign(out_name(i), basis_name(i))]
     } else {
-        vec![assign(out_name(i), last_node)]
+        let last_node = xform_set_node_name(i, xform.transforms.len() - 1);
+        if xform.iteration {
+            vec![
+                statement(fcall(name("connect"), vec![iter_begin_name(i), last_node])),
+                assign(out_name(i), iter_end_name(i)),
+            ]
+        } else {
+            vec![assign(out_name(i), last_node)]
+        }
     }
 }
 
