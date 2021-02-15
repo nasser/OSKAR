@@ -133,21 +133,29 @@ fn hou_make_visible(target: py::Expression) -> py::Expression {
 }
 
 fn codegen_film(film: osk::Film) -> Vec<py::Statement> {
-    vec![
-        funcdef(
-            "Film",
-            vec!["root", "t"],
-            vec![
-                assign(
-                    name("node"),
-                    fcall(
-                        name(&film.picture.identifier),
-                        vec![name("root"), name("t")],
-                    ),
-                ),
-                statement(hou_make_visible(name("node"))),
-            ],
+    let mut film_func_body = vec![
+        assign(
+            name("node"),
+            fcall(
+                name(&film.picture.identifier),
+                vec![name("root"), name("t")],
+            ),
         ),
+        statement(hou_make_visible(name("node"))),
+    ];
+    film.film_parameters.iter().for_each(|(k, v)|
+        match k.as_ref() {
+            "Frames" => film_func_body.push(statement(mcall(name("hou.playbar"), "setFrameRange", vec![integer(v.parse::<u64>().unwrap())]))),
+            _ => ()
+        }
+    );
+    let film_func = funcdef(
+        "Film",
+        vec!["root", "t"],
+        film_func_body,
+    );
+    vec![
+        film_func,
         statement(fcall(name("Film"), vec![name("root"), name("global_time")])),
     ]
 }

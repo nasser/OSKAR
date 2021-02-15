@@ -110,8 +110,8 @@ fn analyze_film_parameters(pairs:&mut Pairs<Rule>) -> Vec<(String, String)> {
         Some(x) if x.as_rule() == Rule::film_parameters => {
             x.into_inner().map(|p| {
                 let mut inner = p.into_inner();
-                (inner.next().unwrap().as_str().to_string(),
-                 inner.next().unwrap().as_str().to_string())
+                (inner.next().unwrap().as_str().trim().to_string(),
+                 inner.next().unwrap().as_str().trim().to_string())
             }).collect()
         }
         _ => vec![]
