@@ -48,8 +48,9 @@ pub enum Csg {
 #[derive(Debug)]
 pub struct TransformSet {
     pub num_pics: NumPics,
-    pub top_level_expression: Option<String>,
-    pub transforms: Vec<Transform>
+    pub top_level_expression: Option<Vec<String>>,
+    pub transforms: Vec<Transform>,
+    pub iteration: bool
 }
 
 #[derive(Debug)]
@@ -184,11 +185,21 @@ fn analyze_transforms(pairs:&mut Pairs<Rule>) -> Vec<Transform> {
     transforms
 }
 
-fn analyze_transform_expression(pairs:&mut Pairs<Rule>) -> Option<String> {
+fn analyze_transform_expression(pairs:&mut Pairs<Rule>) -> Option<Vec<String>> {
     match pairs.peek() {
-        Some(x) if x.as_rule() == Rule::expression_parens =>
-            Some(pairs.next().unwrap().as_str().to_string()),
-        _ => None
+        Some(x) if x.as_rule() == Rule::expression_parens => {
+            let parens: &[_] = &['(', ')'];
+            Some(
+            pairs
+                .next()
+                .unwrap()
+                .as_str()
+                .trim_matches(parens)
+                .split("\n")
+                .map(|l| l.trim().to_string())
+                .collect(),
+        )},
+        _ => None,
     }
 }
 
@@ -196,8 +207,12 @@ fn analyze_transform_set(pairs:&mut Pairs<Rule>) -> TransformSet {
     let num_pics = analyze_num_pics(&mut pairs.next().unwrap().into_inner());
     let top_level_expression = analyze_transform_expression(pairs);
     let transforms = analyze_transforms(pairs);
+    let iteration = match num_pics.number.parse::<i32>() {
+        Ok(n) => n > 1,
+        _ => true
+    };
     
-    TransformSet { num_pics, top_level_expression, transforms }
+    TransformSet { num_pics, top_level_expression, transforms, iteration }
 }
 
 fn analyze_transform_sets(pairs:&mut Pairs<Rule>) -> Operations {
