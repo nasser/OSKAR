@@ -1,5 +1,3 @@
-use std::fs;
-
 use crate::ast as osk;
 use python_parser::ast as py;
 use python_parser::visitors::printer::format_module;
@@ -433,11 +431,8 @@ fn import(m: &str) -> py::Statement {
     })
 }
 
-pub fn preamble() -> String {
-    match fs::read_to_string("oskar.py") {
-        Ok(s) => s,
-        Err(e) => panic!("could not read preamble file! {}", e),
-    }
+pub fn preamble() -> &'static str {
+    include_str!("preamble.py")
 }
 
 pub fn establish_root(root_name: &str) -> String {
