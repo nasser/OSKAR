@@ -143,17 +143,17 @@ fn codegen_film(film: osk::Film) -> Vec<py::Statement> {
         ),
         statement(hou_make_visible(name("node"))),
     ];
-    film.film_parameters.iter().for_each(|(k, v)|
-        match k.as_ref() {
-            "Frames" => film_func_body.push(statement(mcall(name("hou.playbar"), "setFrameRange", vec![integer(v.parse::<u64>().unwrap())]))),
-            _ => ()
-        }
-    );
-    let film_func = funcdef(
-        "Film",
-        vec!["root", "t"],
-        film_func_body,
-    );
+    film.film_parameters
+        .iter()
+        .for_each(|(k, v)| match k.as_ref() {
+            "Frames" => film_func_body.push(statement(mcall(
+                name("hou.playbar"),
+                "setFrameRange",
+                vec![integer(v.parse::<u64>().unwrap())],
+            ))),
+            _ => (),
+        });
+    let film_func = funcdef("Film", vec!["root", "t"], film_func_body);
     vec![
         film_func,
         statement(fcall(name("Film"), vec![name("root"), name("global_time")])),
@@ -254,7 +254,6 @@ fn env_func(xforms: &Vec<osk::TransformSet>, i: usize) -> py::Statement {
             };
             body.push(assign(identifier, value));
         }
-
     });
 
     match &xforms[i].top_level_expression {
