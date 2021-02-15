@@ -234,9 +234,14 @@ fn get_iteration_value(i: usize) -> py::Expression {
 }
 
 fn env_func(xforms: &Vec<osk::TransformSet>, i: usize) -> py::Statement {
+    let pt = if i == 0 {
+        name("_pt")
+    } else {
+        time_func_name(i - 1)
+    };
     let mut body = vec![
         // time variables
-        assign(name("pt"), fcall(name("_pt"), vec![])),
+        assign(name("pt"), fcall(pt, vec![])),
         assign(name("t"), name("pt")),
     ];
     xforms.iter().enumerate().rev().for_each(|(j, t)| {
