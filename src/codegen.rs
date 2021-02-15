@@ -250,7 +250,7 @@ fn env_func(xforms: &Vec<osk::TransformSet>, i: usize) -> py::Statement {
             let value = if t.iteration {
                 get_iteration_value(j)
             } else {
-                integer(1)
+                integer(0)
             };
             body.push(assign(identifier, value));
         }
