@@ -75,10 +75,12 @@ def scale(root, name, prelude, x, y, z):
 
 def Cube(root, pt):
     """
-    create a cube node. takes (and ignores) parent time for compatibility
-    with other pictures
+    create a cube node centered at (.5,.5,.5). takes (and ignores) parent time
+    for compatibility with other pictures
     """
-    return root.createNode('box')
+    cube = root.createNode('box')
+    cube.parmTuple('t').set((.5,.5,.5))
+    return cube
 
 def iteration_value(path):
     """
