@@ -149,7 +149,7 @@ fn codegen_film(film: osk::Film) -> Vec<py::Statement> {
             "Frames" => film_func_body.push(statement(mcall(
                 name("hou.playbar"),
                 "setFrameRange",
-                vec![integer(v.parse::<u64>().unwrap())],
+                vec![integer(0), integer(v.parse::<u64>().unwrap())],
             ))),
             _ => (),
         });
