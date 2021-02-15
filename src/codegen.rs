@@ -152,13 +152,6 @@ fn codegen_film(film: osk::Film) -> Vec<py::Statement> {
     ]
 }
 
-fn basis(b: osk::Invoke) -> py::Expression {
-    match b.identifier.as_str() {
-        "Cube" => mcall(name("geo"), "createNode", vec![string("box")]),
-        _ => panic!(),
-    }
-}
-
 fn iter_begin_name(i: usize) -> py::Expression {
     name(&format!("xform{}_iter_begin", i))
 }
@@ -427,12 +420,6 @@ pub fn codegen_toplevel(tl: osk::TopLevel) -> Vec<py::Statement> {
         osk::TopLevel::PythonCodeBlock(_) => unreachable!(),
         _ => vec![py_print_stmt(vec![string("?")])],
     }
-}
-
-fn import(m: &str) -> py::Statement {
-    py::Statement::Import(py::Import::Import {
-        names: vec![(vec![m.to_string()], None)],
-    })
 }
 
 pub fn preamble() -> &'static str {
