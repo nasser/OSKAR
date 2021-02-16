@@ -188,13 +188,9 @@ fn analyze_transforms(pairs:&mut Pairs<Rule>) -> Vec<Transform> {
 fn analyze_transform_expression(pairs:&mut Pairs<Rule>) -> Option<Vec<String>> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::expression_parens => {
-            let parens: &[_] = &['(', ')'];
-            Some(
-            pairs
-                .next()
-                .unwrap()
-                .as_str()
-                .trim_matches(parens)
+            let mut code = pairs.next().unwrap().as_str().to_string();
+            code.pop();
+            Some(code[1..]
                 .split("\n")
                 .map(|l| l.trim().to_string())
                 .collect(),
