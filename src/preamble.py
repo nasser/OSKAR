@@ -1,4 +1,17 @@
 import hou
+import math
+
+def sin(x):
+    """
+    sin function that operates on degrees
+    """
+    return math.sin(x * (math.pi/180))
+
+def cos(x):
+    """
+    cos function that operates on degrees
+    """
+    return math.cos(x * (math.pi/180))
 
 def function_name(f):
     """
