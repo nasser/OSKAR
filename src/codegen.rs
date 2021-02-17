@@ -242,10 +242,10 @@ fn env_func(
     i: usize,
     j: usize,
 ) -> py::Funcdef {
-    let pt = if i == 0 {
+    let pt = if i == xforms.len() - 1 {
         name("_pt")
     } else {
-        time_func_name(&picture.identifier, i - 1)
+        time_func_name(&picture.identifier, i + 1)
     };
     let mut body = vec![
         // time variables
@@ -487,13 +487,16 @@ fn codegen_standard_picture_transforms(
     // create iteration networks
     body.append(&mut iteration_networks(picture, &xform_sets));
 
-    // for each transform set
-    xform_sets.iter().enumerate().for_each(|(i, t)| {
+    // create time functions
+    xform_sets.iter().enumerate().rev().for_each(|(i, _t)| {
         let stub = env_func(&picture, xform_sets, i, 0);
 
         // declare local time function
         body.push(time_func(&stub));
+    });
 
+    // for each transform set
+    xform_sets.iter().enumerate().for_each(|(i, t)| {
         // establish basis for this transform set
         body.push(basis_value(picture, i));
 
