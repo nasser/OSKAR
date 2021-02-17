@@ -180,12 +180,12 @@ fn iter_meta_name(picture_name: &str, i: usize) -> py::Expression {
     name(&format!("{}_{}_iter_meta_path", picture_name, i))
 }
 
-fn time_func_name_str(i: usize) -> String {
-    format!("xform{}_time", i)
+fn time_func_name_str(picture_name:&str, i: usize) -> String {
+    format!("{}_{}_0_local_time", picture_name, i)
 }
 
-fn time_func_name(i: usize) -> py::Expression {
-    name(&time_func_name_str(i))
+fn time_func_name(picture_name:&str, i: usize) -> py::Expression {
+    name(&time_func_name_str(picture_name, i))
 }
 
 fn env_func_name_str(name: &str, i: usize, j: usize) -> String {
@@ -245,7 +245,7 @@ fn env_func(
     let pt = if i == 0 {
         name("_pt")
     } else {
-        time_func_name(i - 1)
+        time_func_name(&picture.identifier, i - 1)
     };
     let mut body = vec![
         // time variables
@@ -300,7 +300,7 @@ fn basis_value(picture: &osk::Picture, i: usize) -> py::Statement {
             // TODO time function name is duplicated
             vec![
                 name("root"),
-                name(&format!("{}_{}_0_local_time", picture.identifier, i)),
+                time_func_name(&picture.identifier, i)
             ],
         )
     } else {
