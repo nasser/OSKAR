@@ -278,7 +278,7 @@ fn env_func(
     funcdef(&env_func_name_str(&picture.identifier, i, j), vec![], body)
 }
 
-fn time_func(stub:&py::Funcdef) -> py::Statement {
+fn time_func(stub: &py::Funcdef) -> py::Statement {
     let mut code = stub.code.clone();
     // TODO time function name is duplicated
     let func_name = format!("{}_local_time", stub.name);
@@ -298,7 +298,10 @@ fn basis_value(picture: &osk::Picture, i: usize) -> py::Statement {
         fcall(
             name(&picture.basis.identifier),
             // TODO time function name is duplicated
-            vec![name("root"), name(&format!("{}_{}_0_local_time", picture.identifier, i))],
+            vec![
+                name("root"),
+                name(&format!("{}_{}_0_local_time", picture.identifier, i)),
+            ],
         )
     } else {
         out_name(&picture.identifier, i - 1)
@@ -348,12 +351,11 @@ fn get_number_literal(s: &str) -> Option<py::Expression> {
     match to_python_expression(s) {
         py::Expression::Int(_) => Some(expr),
         py::Expression::Float(_) => Some(expr),
-        py::Expression::Uop(py::Uop::Minus, boxed) => 
-            match *boxed {
-                py::Expression::Int(_) => Some(expr),
-                py::Expression::Float(_) => Some(expr),
-                _ => None        
-            }
+        py::Expression::Uop(py::Uop::Minus, boxed) => match *boxed {
+            py::Expression::Int(_) => Some(expr),
+            py::Expression::Float(_) => Some(expr),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -505,7 +507,10 @@ fn codegen_standard_picture_transforms(
 
     // clean up and return last node
     body.push(statement(mcall(name("root"), "layoutChildren", vec![])));
-    body.push(py_return(out_name(&picture.identifier, xform_sets.len() - 1)));
+    body.push(py_return(out_name(
+        &picture.identifier,
+        xform_sets.len() - 1,
+    )));
 
     vec![funcdef_statement(funcdef(
         &picture.identifier,
