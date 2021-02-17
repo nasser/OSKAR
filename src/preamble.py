@@ -1,5 +1,5 @@
-import hou
 import math
+import hou
 
 def sin(x):
     """
@@ -19,7 +19,16 @@ def function_name(f):
     to ensure uniqueness. useful when representing closures in expression
     globals.
     """
-    return f.__name__ + "_" + hex(id(f))
+    return f.__name__ + "__" + hex(id(f))
+
+def export_function(f):
+    """
+    Make a function f available in the global expression environment as
+    function_name(f). Returns the global function name of f.
+    """
+    name = function_name(f)
+    hou.expressionGlobals()[name] = f
+    return name
 
 def global_time():
     """
@@ -32,59 +41,6 @@ def connect(a, b, index=0):
     connect make node b the input to node a
     """
     a.setInput(index, b)
-
-def export_function(f):
-    """
-    Make a function f available in the global expression environment as
-    function_name(f)
-    """
-    hou.expressionGlobals()[function_name(f)] = f
-
-def expression_prelude(env_fn):
-    """
-    generate the prelude code for parameter expressions
-
-    extracts and unpacks a local environment for the parameter from env_fn that
-    is expected to return a dictionary with the local variables visible to this
-    expression
-    """
-    export_function(env_fn)
-    return ("for name, value in %s().iteritems():\n" % function_name(env_fn) +
-            "  exec(name + ' = value')\n" +
-            "return ")
-
-def translate(root, name, prelude, x, y, z):
-    """
-    create a translate transform node, with python expressions for x y and z
-    """
-    xform = root.createNode('xform')
-    xform.parm('tx').setExpression(prelude + x, hou.exprLanguage.Python)
-    xform.parm('ty').setExpression(prelude + y, hou.exprLanguage.Python)
-    xform.parm('tz').setExpression(prelude + z, hou.exprLanguage.Python)
-    xform.setName(name + "_translate")
-    return xform
-
-def rotate(root, name, prelude, x, y, z):
-    """
-    create a rotate transform node, with python expressions for x y and z
-    """
-    xform = root.createNode('xform')
-    xform.parm('rx').setExpression(prelude + x, hou.exprLanguage.Python)
-    xform.parm('ry').setExpression(prelude + y, hou.exprLanguage.Python)
-    xform.parm('rz').setExpression(prelude + z, hou.exprLanguage.Python)
-    xform.setName(name + "_rotate")
-    return xform
-
-def scale(root, name, prelude, x, y, z):
-    """
-    create a scale transform node, with python expressions for x y and z
-    """
-    xform = root.createNode('xform')
-    xform.parm('sx').setExpression(prelude + x, hou.exprLanguage.Python)
-    xform.parm('sy').setExpression(prelude + y, hou.exprLanguage.Python)
-    xform.parm('sz').setExpression(prelude + z, hou.exprLanguage.Python)
-    xform.setName(name + "_scale")
-    return xform
 
 def Cube(root, pt):
     """
@@ -128,4 +84,3 @@ def iteration_network(root, name, count):
     connect(block_end, block_begin)
     
     return (block_begin, block_end, block_meta_path)
-
