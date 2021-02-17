@@ -51,6 +51,16 @@ def Cube(root, pt):
     cube.parmTuple('t').set((.5,.5,.5))
     return cube
 
+def Sphere(root, pt):
+    """
+    create a sphere node centered at (.5,.5,.5). takes (and ignores) parent time
+    for compatibility with other pictures
+    """
+    sphere = root.createNode('sphere')
+    sphere.parmTuple('rad').set((.5,.5,.5))
+    sphere.parmTuple('t').set((.5,.5,.5))
+    return sphere
+
 def iteration_value(path):
     """
     computes the iteration value (from 0.0 to 1.0, generally 'i' in
