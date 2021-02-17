@@ -141,12 +141,14 @@ fn hou_make_visible(target: py::Expression) -> py::Expression {
 }
 
 fn codegen_film(film: osk::Film) -> Vec<py::Statement> {
+    let mut parameters = vec![name("root"), name("t")];
+    film.picture.parameters.iter().for_each(|s| parameters.push(name(s)));
     let mut film_func_body = vec![
         assign(
             name("node"),
             fcall(
                 name(&film.picture.identifier),
-                vec![name("root"), name("t")],
+                parameters,
             ),
         ),
         statement(hou_make_visible(name("node"))),
@@ -180,11 +182,11 @@ fn iter_meta_name(picture_name: &str, i: usize) -> py::Expression {
     name(&format!("{}_{}_iter_meta_path", picture_name, i))
 }
 
-fn time_func_name_str(picture_name:&str, i: usize) -> String {
+fn time_func_name_str(picture_name: &str, i: usize) -> String {
     format!("{}_{}_0_local_time", picture_name, i)
 }
 
-fn time_func_name(picture_name:&str, i: usize) -> py::Expression {
+fn time_func_name(picture_name: &str, i: usize) -> py::Expression {
     name(&time_func_name_str(picture_name, i))
 }
 
@@ -293,16 +295,16 @@ fn time_func(stub: &py::Funcdef) -> py::Statement {
 }
 
 fn basis_value(picture: &osk::Picture, i: usize) -> py::Statement {
+    // TODO time function name is duplicated
+    let mut basis_invocation_parameters =
+        vec![name("root"), time_func_name(&picture.identifier, i)];
+    picture
+        .basis
+        .parameters
+        .iter()
+        .for_each(|p| basis_invocation_parameters.push(name(&p)));
     let basis_value = if i == 0 {
-        // TODO not sure which time value to pass in here
-        fcall(
-            name(&picture.basis.identifier),
-            // TODO time function name is duplicated
-            vec![
-                name("root"),
-                time_func_name(&picture.identifier, i)
-            ],
-        )
+        fcall(name(&picture.basis.identifier), basis_invocation_parameters)
     } else {
         out_name(&picture.identifier, i - 1)
     };
@@ -515,9 +517,15 @@ fn codegen_standard_picture_transforms(
         xform_sets.len() - 1,
     )));
 
+    let mut parameters = vec!["root", "_pt"];
+    picture
+        .parameters
+        .iter()
+        .for_each(|p| parameters.push(&p));
+
     vec![funcdef_statement(funcdef(
         &picture.identifier,
-        vec!["root", "_pt"],
+        parameters,
         body,
     ))]
 }
@@ -542,6 +550,7 @@ pub fn codegen_toplevel(tl: osk::TopLevel) -> Vec<py::Statement> {
     match tl {
         osk::TopLevel::Film(f) => codegen_film(f),
         osk::TopLevel::Definition(osk::Definition::Standard(p)) => codegen_standard_picture(p),
+        osk::TopLevel::Definition(osk::Definition::Function(p)) => codegen_standard_picture(p),
         osk::TopLevel::Skip => unreachable!(),
         osk::TopLevel::PythonCodeBlock(_) => unreachable!(),
         _ => vec![py_print_stmt(vec![string("?")])],
