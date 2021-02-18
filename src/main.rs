@@ -64,7 +64,7 @@ fn compile(path: String) {
     println!("### preamble\n{}", codegen::preamble());
     println!("### establish root\n{}", codegen::establish_root(&name));
     // TODO make this optional
-    println!("### clear root\n{}", "for __i in root.children(): __i.destroy()\n");
+    println!("### clear root\nfor __i in root.children(): __i.destroy()\n");
     println!("### begin film\n");
 
     for pair in pairs {

@@ -60,7 +60,7 @@ fn mcall(target: py::Expression, name: &str, arguments: Vec<py::Expression>) -> 
         _box(py::Expression::Attribute(_box(target), name.to_string())),
         arguments
             .into_iter()
-            .map(|a| py::Argument::Positional(a))
+            .map(py::Argument::Positional)
             .collect(),
     )
 }
@@ -70,7 +70,7 @@ fn fcall(target: py::Expression, arguments: Vec<py::Expression>) -> py::Expressi
         _box(target),
         arguments
             .into_iter()
-            .map(|a| py::Argument::Positional(a))
+            .map(py::Argument::Positional)
             .collect(),
     )
 }
@@ -211,7 +211,7 @@ fn xform_set_node_name(picture_name: &str, xform_num: usize, node_num: usize) ->
 
 fn iteration_networks(
     picture: &osk::Picture,
-    transforms: &Vec<osk::TransformSet>,
+    transforms: &[osk::TransformSet],
 ) -> Vec<py::Statement> {
     let mut ret = vec![];
     transforms.iter().enumerate().for_each(|(i, t)| {
@@ -243,7 +243,7 @@ fn get_iteration_value(picture: &osk::Picture, i: usize) -> py::Expression {
 
 fn env_func(
     picture: &osk::Picture,
-    xforms: &Vec<osk::TransformSet>,
+    xforms: &[osk::TransformSet],
     i: usize,
     j: usize,
 ) -> py::Funcdef {
@@ -274,11 +274,10 @@ fn env_func(
         }
     });
 
-    match &xforms[i].top_level_expression {
-        Some(lines) => lines
+    if let Some(lines) = &xforms[i].top_level_expression {
+        lines
             .iter()
-            .for_each(|l| body.append(&mut to_python_statements(l))),
-        _ => (),
+            .for_each(|l| body.append(&mut to_python_statements(l)))
     };
     funcdef(&env_func_name_str(&picture.identifier, i, j), vec![], body)
 }
@@ -290,7 +289,7 @@ fn time_func(stub: &py::Funcdef) -> py::Statement {
     code.push(py_return(name("t")));
     let time_func = py::Funcdef {
         code,
-        name: func_name.clone(),
+        name: func_name,
         ..stub.clone()
     };
 
@@ -392,11 +391,11 @@ fn make_transform_node(
     picture: &osk::Picture,
     xform: &osk::Transform,
     stub: &py::Funcdef,
-    i: usize,
-    j: usize,
+    set_index: usize,
+    xform_index: usize,
 ) -> Vec<py::Statement> {
     let mut ret = vec![];
-    let var = name(&format!("{}_{}_{}", picture.identifier, i, j));
+    let var = name(&format!("{}_{}_{}", picture.identifier, set_index, xform_index));
     ret.push(assign(
         var.clone(),
         mcall(root, "createNode", vec![string("xform")]),
@@ -404,21 +403,21 @@ fn make_transform_node(
 
     match xform {
         osk::Transform::Translate(x, y, z) => {
-            let name = &format!("{}_{}_{}_translate", picture.identifier, i, j);
+            let name = &format!("{}_{}_{}_translate", picture.identifier, set_index, xform_index);
             ret.append(&mut set_xform_parm(&var, "tx", x, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "ty", y, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "tz", z, &stub, integer(0)));
             ret.push(statement(set_name(var, name)));
         }
         osk::Transform::Rotate(x, y, z) => {
-            let name = &format!("{}_{}_{}_rotate", picture.identifier, i, j);
+            let name = &format!("{}_{}_{}_rotate", picture.identifier, set_index, xform_index);
             ret.append(&mut set_xform_parm(&var, "rx", x, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "ry", y, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "rz", z, &stub, integer(0)));
             ret.push(statement(set_name(var, name)));
         }
         osk::Transform::Scale(x, y, z) => {
-            let name = &format!("{}_{}_{}_scale", picture.identifier, i, j);
+            let name = &format!("{}_{}_{}_scale", picture.identifier, set_index, xform_index);
             ret.append(&mut set_xform_parm(&var, "sx", x, &stub, integer(1)));
             ret.append(&mut set_xform_parm(&var, "sy", y, &stub, integer(1)));
             ret.append(&mut set_xform_parm(&var, "sz", z, &stub, integer(1)));
@@ -430,7 +429,7 @@ fn make_transform_node(
 
 fn transform_set_nodes(
     picture: &osk::Picture,
-    xform_sets: &Vec<osk::TransformSet>,
+    xform_sets: &[osk::TransformSet],
     xform_set: &osk::TransformSet,
     i: usize,
 ) -> Vec<py::Statement> {
@@ -467,7 +466,7 @@ fn establish_out(
     xform: &osk::TransformSet,
     i: usize,
 ) -> Vec<py::Statement> {
-    let out_node = if xform.transforms.len() == 0 {
+    let out_node = if xform.transforms.is_empty() {
         basis_name(&picture.identifier, i)
     } else {
         xform_set_node_name(&picture.identifier, i, xform.transforms.len() - 1)
@@ -490,7 +489,7 @@ fn establish_out(
 
 fn codegen_standard_picture_transforms(
     picture: &osk::Picture,
-    xform_sets: &Vec<osk::TransformSet>,
+    xform_sets: &[osk::TransformSet],
 ) -> Vec<py::Statement> {
     let mut body = vec![];
     // create iteration networks
@@ -538,7 +537,7 @@ fn csg_invoke(invoke: &osk::Invoke, parameters:Vec<py::Expression>) -> py::Expre
 
 fn codegen_standard_picture_csg(
     picture: &osk::Picture,
-    csgs: &Vec<osk::Csg>,
+    csgs: &[osk::Csg],
 ) -> Vec<py::Statement> {
     let mut ret = vec![];
     let var = name("node");
@@ -610,7 +609,7 @@ pub fn preamble() -> &'static str {
 
 pub fn establish_root(root_name: &str) -> String {
     // TODO does root_name need to be processed here? turn spaces into underscores?
-    format_module(&vec![
+    format_module(&[
         assign(
             name("root"),
             bop_or(

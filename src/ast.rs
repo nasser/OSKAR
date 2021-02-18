@@ -191,7 +191,7 @@ fn analyze_transform_expression(pairs:&mut Pairs<Rule>) -> Option<Vec<String>> {
             let mut code = pairs.next().unwrap().as_str().to_string();
             code.pop();
             Some(code[1..]
-                .split("\n")
+                .split('\n')
                 .map(|l| l.trim().to_string())
                 .collect(),
         )},
