@@ -149,10 +149,7 @@ fn codegen_film(film: osk::Film) -> Vec<py::Statement> {
     let mut film_func_body = vec![
         assign(
             name("node"),
-            fcall(
-                name(&film.picture.identifier),
-                parameters,
-            ),
+            fcall(name(&film.picture.identifier), parameters),
         ),
         statement(hou_make_visible(name("node"))),
     ];
@@ -382,8 +379,12 @@ fn set_xform_parm(
     }
 }
 
-fn set_name(target:py::Expression, name_argument:&str) -> py::Expression {
-    mcall(target, "setName", vec![fcall(name("unique"), vec![string(name_argument)])])
+fn set_name(target: py::Expression, name_argument: &str) -> py::Expression {
+    mcall(
+        target,
+        "setName",
+        vec![fcall(name("unique"), vec![string(name_argument)])],
+    )
 }
 
 fn make_transform_node(
@@ -395,7 +396,10 @@ fn make_transform_node(
     xform_index: usize,
 ) -> Vec<py::Statement> {
     let mut ret = vec![];
-    let var = name(&format!("{}_{}_{}", picture.identifier, set_index, xform_index));
+    let var = name(&format!(
+        "{}_{}_{}",
+        picture.identifier, set_index, xform_index
+    ));
     ret.push(assign(
         var.clone(),
         mcall(root, "createNode", vec![string("xform")]),
@@ -403,14 +407,20 @@ fn make_transform_node(
 
     match xform {
         osk::Transform::Translate(x, y, z) => {
-            let name = &format!("{}_{}_{}_translate", picture.identifier, set_index, xform_index);
+            let name = &format!(
+                "{}_{}_{}_translate",
+                picture.identifier, set_index, xform_index
+            );
             ret.append(&mut set_xform_parm(&var, "tx", x, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "ty", y, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "tz", z, &stub, integer(0)));
             ret.push(statement(set_name(var, name)));
         }
         osk::Transform::Rotate(x, y, z) => {
-            let name = &format!("{}_{}_{}_rotate", picture.identifier, set_index, xform_index);
+            let name = &format!(
+                "{}_{}_{}_rotate",
+                picture.identifier, set_index, xform_index
+            );
             ret.append(&mut set_xform_parm(&var, "rx", x, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "ry", y, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "rz", z, &stub, integer(0)));
@@ -526,30 +536,47 @@ fn codegen_standard_picture_transforms(
     body
 }
 
-fn csg_invoke(invoke: &osk::Invoke, parameters:Vec<py::Expression>) -> py::Expression {
-    parameters.clone().append(&mut invoke
-                            .parameters
-                            .iter()
-                            .map(|p| to_python_expression(p))
-                            .collect());
+fn csg_invoke(invoke: &osk::Invoke, parameters: Vec<py::Expression>) -> py::Expression {
+    parameters.clone().append(
+        &mut invoke
+            .parameters
+            .iter()
+            .map(|p| to_python_expression(p))
+            .collect(),
+    );
     fcall(name(&invoke.identifier), parameters)
 }
 
-fn codegen_standard_picture_csg(
-    picture: &osk::Picture,
-    csgs: &[osk::Csg],
-) -> Vec<py::Statement> {
+fn codegen_standard_picture_csg(picture: &osk::Picture, csgs: &[osk::Csg]) -> Vec<py::Statement> {
     let mut ret = vec![];
     let var = name("node");
-    ret.push(assign(var.clone(), csg_invoke(&picture.basis, vec![name("root"), name("_pt")])));
+    ret.push(assign(
+        var.clone(),
+        csg_invoke(&picture.basis, vec![name("root"), name("_pt")]),
+    ));
     csgs.iter().for_each(|csg| {
         let var = var.clone();
         let (rhs, boolean_mode) = match csg {
-            osk::Csg::Union(invoke) => (csg_invoke(&invoke, vec![name("root"), name("_pt")]), string("union")),
-            osk::Csg::Intersection(invoke) => (csg_invoke(&invoke, vec![name("root"), name("_pt")]), string("intersect")),
-            osk::Csg::Difference(invoke) => (csg_invoke(&invoke, vec![name("root"), name("_pt")]), string("subtract")),
+            osk::Csg::Union(invoke) => (
+                csg_invoke(&invoke, vec![name("root"), name("_pt")]),
+                string("union"),
+            ),
+            osk::Csg::Intersection(invoke) => (
+                csg_invoke(&invoke, vec![name("root"), name("_pt")]),
+                string("intersect"),
+            ),
+            osk::Csg::Difference(invoke) => (
+                csg_invoke(&invoke, vec![name("root"), name("_pt")]),
+                string("subtract"),
+            ),
         };
-        ret.push(assign(var.clone(), fcall(name("create_boolean"), vec![name("root"), var, rhs, boolean_mode])));
+        ret.push(assign(
+            var.clone(),
+            fcall(
+                name("create_boolean"),
+                vec![name("root"), var, rhs, boolean_mode],
+            ),
+        ));
     });
     ret.push(statement(mcall(name("root"), "layoutChildren", vec![])));
     ret.push(py_return(var));
@@ -558,10 +585,10 @@ fn codegen_standard_picture_csg(
 
 fn codegen_standard_picture(picture: osk::Picture) -> Vec<py::Statement> {
     let body = match picture.operations {
-        osk::Operations::TransformSet(ref xforms) =>
-            codegen_standard_picture_transforms(&picture, xforms),
-        osk::Operations::Csg(ref csgs) =>
-            codegen_standard_picture_csg(&picture, csgs),
+        osk::Operations::TransformSet(ref xforms) => {
+            codegen_standard_picture_transforms(&picture, xforms)
+        }
+        osk::Operations::Csg(ref csgs) => codegen_standard_picture_csg(&picture, csgs),
     };
 
     let mut parameters = vec!["root", "_pt"];

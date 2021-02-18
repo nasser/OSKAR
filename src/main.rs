@@ -42,7 +42,7 @@ struct ReverseOpts {
 }
 
 // maybe move to codegen
-fn comment_string(s:&str) -> String {
+fn comment_string(s: &str) -> String {
     let mut ret = "# ".to_string();
     ret.push_str(&s.replace("\n", "\n# "));
     ret
@@ -71,9 +71,7 @@ fn compile(path: String) {
         let source = pair.as_str();
         match analyze_top_level(pair) {
             ast::TopLevel::Skip => (),
-            ast::TopLevel::PythonCodeBlock(code) => {
-                println!("{}", code.lines)
-            },
+            ast::TopLevel::PythonCodeBlock(code) => println!("{}", code.lines),
             x => {
                 println!("{}", comment_string(source.trim_end()));
                 let python = codegen::to_python_source(x);
