@@ -72,7 +72,7 @@ pub struct Film {
     pub film_parameters : Vec<(String, String)>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Invoke {
     pub identifier : String,
     pub parameters : Vec<String>

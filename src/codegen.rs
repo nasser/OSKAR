@@ -123,11 +123,16 @@ fn funcdef_statement(f: py::Funcdef) -> py::Statement {
     py::Statement::Compound(_box(py::CompoundStatement::Funcdef(f)))
 }
 
-fn list_literal(exprs:Vec<py::Expression>) -> py::Expression {
-    py::Expression::ListLiteral(exprs.iter().map(|e| py::SetItem::Unique(e.clone())).collect())
+fn list_literal(exprs: Vec<py::Expression>) -> py::Expression {
+    py::Expression::ListLiteral(
+        exprs
+            .iter()
+            .map(|e| py::SetItem::Unique(e.clone()))
+            .collect(),
+    )
 }
 
-fn subscript(lhs:py::Expression, rhs:py::Expression) -> py::Expression {
+fn subscript(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
     py::Expression::Subscript(_box(lhs), vec![py::Subscript::Simple(rhs)])
 }
 
@@ -137,7 +142,10 @@ fn hou_make_visible(target: py::Expression) -> py::Expression {
 
 fn codegen_film(film: osk::Film) -> Vec<py::Statement> {
     let mut parameters = vec![name("root"), name("t")];
-    film.picture.parameters.iter().for_each(|s| parameters.push(name(s)));
+    film.picture
+        .parameters
+        .iter()
+        .for_each(|s| parameters.push(name(s)));
     let mut film_func_body = vec![
         assign(
             name("node"),
@@ -375,6 +383,10 @@ fn set_xform_parm(
     }
 }
 
+fn set_name(target:py::Expression, name_argument:&str) -> py::Expression {
+    mcall(target, "setName", vec![fcall(name("unique"), vec![string(name_argument)])])
+}
+
 fn make_transform_node(
     root: py::Expression,
     picture: &osk::Picture,
@@ -396,21 +408,21 @@ fn make_transform_node(
             ret.append(&mut set_xform_parm(&var, "tx", x, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "ty", y, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "tz", z, &stub, integer(0)));
-            ret.push(statement(mcall(var, "setName", vec![string(name)])));
+            ret.push(statement(set_name(var, name)));
         }
         osk::Transform::Rotate(x, y, z) => {
             let name = &format!("{}_{}_{}_rotate", picture.identifier, i, j);
             ret.append(&mut set_xform_parm(&var, "rx", x, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "ry", y, &stub, integer(0)));
             ret.append(&mut set_xform_parm(&var, "rz", z, &stub, integer(0)));
-            ret.push(statement(mcall(var, "setName", vec![string(name)])));
+            ret.push(statement(set_name(var, name)));
         }
         osk::Transform::Scale(x, y, z) => {
             let name = &format!("{}_{}_{}_scale", picture.identifier, i, j);
             ret.append(&mut set_xform_parm(&var, "sx", x, &stub, integer(1)));
             ret.append(&mut set_xform_parm(&var, "sy", y, &stub, integer(1)));
             ret.append(&mut set_xform_parm(&var, "sz", z, &stub, integer(1)));
-            ret.push(statement(mcall(var, "setName", vec![string(name)])));
+            ret.push(statement(set_name(var, name)));
         }
     };
     ret
@@ -512,11 +524,49 @@ fn codegen_standard_picture_transforms(
         xform_sets.len() - 1,
     )));
 
+    body
+}
+
+fn csg_invoke(invoke: &osk::Invoke, parameters:Vec<py::Expression>) -> py::Expression {
+    parameters.clone().append(&mut invoke
+                            .parameters
+                            .iter()
+                            .map(|p| to_python_expression(p))
+                            .collect());
+    fcall(name(&invoke.identifier), parameters)
+}
+
+fn codegen_standard_picture_csg(
+    picture: &osk::Picture,
+    csgs: &Vec<osk::Csg>,
+) -> Vec<py::Statement> {
+    let mut ret = vec![];
+    let var = name("node");
+    ret.push(assign(var.clone(), csg_invoke(&picture.basis, vec![name("root"), name("_pt")])));
+    csgs.iter().for_each(|csg| {
+        let var = var.clone();
+        let (rhs, boolean_mode) = match csg {
+            osk::Csg::Union(invoke) => (csg_invoke(&invoke, vec![name("root"), name("_pt")]), string("union")),
+            osk::Csg::Intersection(invoke) => (csg_invoke(&invoke, vec![name("root"), name("_pt")]), string("intersect")),
+            osk::Csg::Difference(invoke) => (csg_invoke(&invoke, vec![name("root"), name("_pt")]), string("subtract")),
+        };
+        ret.push(assign(var.clone(), fcall(name("create_boolean"), vec![name("root"), var, rhs, boolean_mode])));
+    });
+    ret.push(statement(mcall(name("root"), "layoutChildren", vec![])));
+    ret.push(py_return(var));
+    ret
+}
+
+fn codegen_standard_picture(picture: osk::Picture) -> Vec<py::Statement> {
+    let body = match picture.operations {
+        osk::Operations::TransformSet(ref xforms) =>
+            codegen_standard_picture_transforms(&picture, xforms),
+        osk::Operations::Csg(ref csgs) =>
+            codegen_standard_picture_csg(&picture, csgs),
+    };
+
     let mut parameters = vec!["root", "_pt"];
-    picture
-        .parameters
-        .iter()
-        .for_each(|p| parameters.push(&p));
+    picture.parameters.iter().for_each(|p| parameters.push(&p));
 
     vec![funcdef_statement(funcdef(
         &picture.identifier,
@@ -525,27 +575,22 @@ fn codegen_standard_picture_transforms(
     ))]
 }
 
-fn codegen_standard_picture_csg(
-    _picture: &osk::Picture,
-    _csgs: &Vec<osk::Csg>,
-) -> Vec<py::Statement> {
-    panic!("CSG not supported yet")
-}
-
-fn codegen_standard_picture(picture: osk::Picture) -> Vec<py::Statement> {
-    match picture.operations {
-        osk::Operations::TransformSet(ref xforms) => {
-            codegen_standard_picture_transforms(&picture, xforms)
-        }
-        osk::Operations::Csg(ref csgs) => codegen_standard_picture_csg(&picture, csgs),
-    }
-}
-
 fn codegen_picture_selection(picture_list: osk::PictureList) -> Vec<py::Statement> {
-    let body = vec![
-        py_return(subscript(list_literal(picture_list.invokes.iter().map(|i| name(&i.identifier)).collect()), name("i")))
-    ];
-    vec![funcdef_statement(funcdef(&picture_list.identifier, vec!["i"], body))]
+    let body = vec![py_return(subscript(
+        list_literal(
+            picture_list
+                .invokes
+                .iter()
+                .map(|i| name(&i.identifier))
+                .collect(),
+        ),
+        name("i"),
+    ))];
+    vec![funcdef_statement(funcdef(
+        &picture_list.identifier,
+        vec!["i"],
+        body,
+    ))]
 }
 
 pub fn codegen_toplevel(tl: osk::TopLevel) -> Vec<py::Statement> {
@@ -555,7 +600,7 @@ pub fn codegen_toplevel(tl: osk::TopLevel) -> Vec<py::Statement> {
         osk::TopLevel::Definition(osk::Definition::Function(p)) => codegen_standard_picture(p),
         osk::TopLevel::Definition(osk::Definition::Selection(p)) => codegen_picture_selection(p),
         osk::TopLevel::Skip => unreachable!(),
-        osk::TopLevel::PythonCodeBlock(_) => unreachable!()
+        osk::TopLevel::PythonCodeBlock(_) => unreachable!(),
     }
 }
 

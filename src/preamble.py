@@ -59,6 +59,7 @@ def Sphere(root, pt):
     sphere = root.createNode('sphere')
     sphere.parmTuple('rad').set((.5,.5,.5))
     sphere.parmTuple('t').set((.5,.5,.5))
+    sphere.parm('type').set("poly")
     return sphere
 
 def Cylinder(root, pt):
@@ -82,6 +83,22 @@ def iteration_value(path):
     """
     geo = hou.node(path).geometry()
     return float(geo.attribValue("iteration")) / (geo.attribValue("numiterations") - 1)
+
+def create_boolean(root, lhs, rhs, op):
+    boolean = root.createNode('boolean')
+    boolean.parm('booleanop').set(op)
+    connect(boolean, lhs, 0)
+    connect(boolean, rhs, 1)
+    return boolean
+
+_name_count = {}
+def unique(s):
+    if s in _name_count:
+        _name_count[s] += 1
+        return "%s_%d" % (s, _name_count[s])
+    else:
+        _name_count[s] = 0
+        return s
 
 def iteration_network(root, name, count):
     begin_name = name + "_begin"
