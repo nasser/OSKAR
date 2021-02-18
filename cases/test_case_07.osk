@@ -13,7 +13,7 @@ def myTY1(x):
 ***                               # End Python Block
 
 # Picture_Function defined
-Funplot(TY) <<< cube [ {1}              *(.01, 0.4, .01)    ] # scale to thin rod
+Funplot(TY) <<< Cube [ {1}              *(.01, 0.4, .01)    ] # scale to thin rod
                      [ {number_of_pics} +( i*1.0, TY(i), 0) ] # move in y as function of (i)
                      [ {1}              *(1, .5, 1)         ] # scale to half height
 

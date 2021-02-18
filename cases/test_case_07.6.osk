@@ -18,9 +18,11 @@ Slabs(Basis) <<< Basis [ {1}
 Pic_list <<< [ Cube, Cylinder, Sphere ]
  
 # call slabs function with argument, Cylinder; produces test_case_07.5a.png
-Scene << Slabs(pic_list(1)) [ {1} ]
+Scene << Slabs(Pic_list(1)) [ {1} ]
 
 # call slabs function with argument, Cube; produces test_case_07.5b.png
-Scene << Slabs(pic_list(0)) [ {1} ]
+# Scene << Slabs(Pic_list(0)) [ {1} ]
+
+Film :: Scene
 
 

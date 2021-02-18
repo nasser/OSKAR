@@ -51,21 +51,8 @@ fn string(s: &str) -> py::Expression {
     }])
 }
 
-fn py_print(args: Vec<py::Expression>) -> py::Expression {
-    py::Expression::Call(
-        Box::new(name("print")),
-        args.into_iter()
-            .map(|a| py::Argument::Positional(a))
-            .collect(),
-    )
-}
-
 fn py_return(expression: py::Expression) -> py::Statement {
     py::Statement::Return(vec![expression])
-}
-
-fn py_print_stmt(args: Vec<py::Expression>) -> py::Statement {
-    py::Statement::Expressions(vec![py_print(args)])
 }
 
 fn mcall(target: py::Expression, name: &str, arguments: Vec<py::Expression>) -> py::Expression {
@@ -134,6 +121,14 @@ fn funcdef(name: &str, params: Vec<&str>, code: Vec<py::Statement>) -> py::Funcd
 
 fn funcdef_statement(f: py::Funcdef) -> py::Statement {
     py::Statement::Compound(_box(py::CompoundStatement::Funcdef(f)))
+}
+
+fn list_literal(exprs:Vec<py::Expression>) -> py::Expression {
+    py::Expression::ListLiteral(exprs.iter().map(|e| py::SetItem::Unique(e.clone())).collect())
+}
+
+fn subscript(lhs:py::Expression, rhs:py::Expression) -> py::Expression {
+    py::Expression::Subscript(_box(lhs), vec![py::Subscript::Simple(rhs)])
 }
 
 fn hou_make_visible(target: py::Expression) -> py::Expression {
@@ -546,14 +541,21 @@ fn codegen_standard_picture(picture: osk::Picture) -> Vec<py::Statement> {
     }
 }
 
+fn codegen_picture_selection(picture_list: osk::PictureList) -> Vec<py::Statement> {
+    let body = vec![
+        py_return(subscript(list_literal(picture_list.invokes.iter().map(|i| name(&i.identifier)).collect()), name("i")))
+    ];
+    vec![funcdef_statement(funcdef(&picture_list.identifier, vec!["i"], body))]
+}
+
 pub fn codegen_toplevel(tl: osk::TopLevel) -> Vec<py::Statement> {
     match tl {
         osk::TopLevel::Film(f) => codegen_film(f),
         osk::TopLevel::Definition(osk::Definition::Standard(p)) => codegen_standard_picture(p),
         osk::TopLevel::Definition(osk::Definition::Function(p)) => codegen_standard_picture(p),
+        osk::TopLevel::Definition(osk::Definition::Selection(p)) => codegen_picture_selection(p),
         osk::TopLevel::Skip => unreachable!(),
-        osk::TopLevel::PythonCodeBlock(_) => unreachable!(),
-        _ => vec![py_print_stmt(vec![string("?")])],
+        osk::TopLevel::PythonCodeBlock(_) => unreachable!()
     }
 }
 
