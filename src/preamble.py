@@ -61,6 +61,16 @@ def Sphere(root, pt):
     sphere.parmTuple('t').set((.5,.5,.5))
     return sphere
 
+def Cylinder(root, pt):
+    """
+    create a cylinder node centered at (.5,.5,.5). takes (and ignores) parent time
+    for compatibility with other pictures
+    """
+    cylinder = root.createNode('tube')
+    cylinder.parmTuple('rad').set((.5,.5))
+    cylinder.parmTuple('t').set((.5,.5,.5))
+    return cylinder
+
 def iteration_value(path):
     """
     computes the iteration value (from 0.0 to 1.0, generally 'i' in
