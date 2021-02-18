@@ -21,4 +21,4 @@ Film :: Scene
 
 #call slabs function with argument: cube    ; produces test_case_07.5b.png
 Scene << Slabs(Cube) [ {1} ]
-Film :: Scene
+# Film :: Scene

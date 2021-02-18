@@ -3,10 +3,9 @@
 # picture definition using python code
 
 ***                     # Begin Python Block
-import math
 number_of_pics = 50       # variable definition
 def fun(x):               # function definition
-      return (math.sin(x))
+      return sin(x)
 ***                     # End Python Block
 
 Slab << Cube [ {number_of_pics} * ( .02, .4, .02)    # scale to thin rod
