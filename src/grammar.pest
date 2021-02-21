@@ -12,7 +12,7 @@ python_delimeter    = _{ "***" }
 
 picture_definition  = { standard_picture | picture_function | picture_selection  }
 
-standard_picture    = { identifier ~ empty_paramaters? ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)* }
+standard_picture    = { identifier ~ empty_paramaters? ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)+ }
 basis_picture       = { identifier ~ parameters? }
 transform_set       = { "[" ~ num_pics ~ expression_parens? ~ transform* ~ "]" }
 num_pics            = { "{" ~ (number | identifier) ~ ("," ~ identifier)? ~ "}" }
