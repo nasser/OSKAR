@@ -1,17 +1,19 @@
 use pest::error::*;
 use pest::iterators::*;
 use pest::Parser;
+use std::process;
 
 #[derive(Parser, Debug)]
 #[grammar = "grammar.pest"]
 pub struct OskarParser;
 
 fn print_error(e: Error<Rule>, path: &str) {
+    eprintln!("ERROR in OSKAR syntax in file '{}'", path);
     match e.line_col {
-        LineColLocation::Pos((l, c)) => println!("{} ({}:{}:{})", e, path, l, c),
-        LineColLocation::Span((sl, sc), _) => println!("{} ({}:{}:{})", e, path, sl, sc),
+        LineColLocation::Pos((l, c)) => eprintln!("{} ({}:{}:{})", e, path, l, c),
+        LineColLocation::Span((sl, sc), _) => eprintln!("{} ({}:{}:{})", e, path, sl, sc),
     }
-    panic!("could not parse")
+    process::exit(1)
 }
 
 pub fn parse_source<'a>(source: &'a str, path: &str) -> Pairs<'a, Rule> {
