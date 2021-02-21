@@ -1,3 +1,4 @@
+use python_parser::ast as py;
 use pest::iterators::*;
 use pest::*;
 
@@ -48,9 +49,15 @@ pub enum Csg {
 #[derive(Debug)]
 pub struct TransformSet {
     pub num_pics: NumPics,
-    pub top_level_expression: Option<Vec<String>>,
+    pub top_level_expression: Option<TransformSetStatements>,
     pub transforms: Vec<Transform>,
     pub iteration: bool,
+}
+
+#[derive(Debug)]
+pub struct TransformSetStatements {
+    pub statements: Vec<py::Statement>,
+    pub names: Vec<String>
 }
 
 #[derive(Debug)]
@@ -96,6 +103,13 @@ fn panic_span(span: Span, message: &str) {
         c
     );
     panic!("analysis error")
+}
+
+pub fn to_python_statements(code: &str) -> Vec<py::Statement> {
+    match python_parser::file_input(python_parser::make_strspan(code)) {
+        Ok((_, stmnts)) => stmnts,
+        Err(_) => panic!("could not parse {}", code),
+    }
 }
 
 fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Vec<String> {
@@ -211,17 +225,36 @@ fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Vec<Transform> {
     transforms
 }
 
-fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Option<Vec<String>> {
+fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Option<TransformSetStatements> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::expression_parens => {
             let mut code = pairs.next().unwrap().as_str().to_string();
             code.pop();
-            Some(
-                code[1..]
-                    .split('\n')
-                    .map(|l| l.trim().to_string())
-                    .collect(),
-            )
+            let statements:Vec<py::Statement> = code[1..]
+                            .split('\n')
+                            .map(|l| l.trim().to_string())
+                            .flat_map(|l| to_python_statements(&l))
+                            .collect();
+            let names = statements.iter()
+                .filter(|s| match s {
+                    py::Statement::Assignment(_, _) => true,
+                    _ => false
+                })
+                .flat_map(|s| match s {
+                    py::Statement::Assignment(lhs, _) => lhs,
+                    _ => unreachable!()
+                })
+                .filter(|e| match e {
+                    py::Expression::Name(_) => true,
+                    _ => false
+                })
+                .map(|e| match e {
+                    py::Expression::Name(n) => n.to_owned(),
+                    _ => unreachable!()
+                })
+                .collect();
+
+            Some(TransformSetStatements { statements, names })
         }
         _ => None,
     }

@@ -2,15 +2,8 @@ use crate::ast as osk;
 use python_parser::ast as py;
 use python_parser::visitors::printer::format_module;
 
-fn to_python_statements(code: &str) -> Vec<py::Statement> {
-    match python_parser::file_input(python_parser::make_strspan(code)) {
-        Ok((_, stmnts)) => stmnts,
-        Err(_) => panic!("could not parse {}", code),
-    }
-}
-
 fn to_python_expression(code: &str) -> py::Expression {
-    match to_python_statements(code) {
+    match osk::to_python_statements(code) {
         stmnts if stmnts.len() == 1 => match &stmnts[0] {
             py::Statement::Assignment(lhs, _) if lhs.len() == 1 => lhs[0].clone(),
             _ => panic!("unexpected python AST in {}", code),
@@ -316,10 +309,8 @@ fn env_func(
         }
     });
 
-    if let Some(lines) = &xforms[i].top_level_expression {
-        lines
-            .iter()
-            .for_each(|l| body.append(&mut to_python_statements(l)))
+    if let Some(e) = &xforms[i].top_level_expression {
+        body.append(&mut e.statements.to_owned());
     };
     funcdef(&env_func_name_str(&picture.identifier, i, j), vec![], body)
 }
@@ -336,6 +327,23 @@ fn time_func(stub: &py::Funcdef) -> py::Statement {
     };
 
     funcdef_statement(time_func)
+}
+
+fn xform_code_thunks(stub: &py::Funcdef, statements:&osk::TransformSetStatements) -> Vec<py::Statement> {
+    statements.names.iter()
+        .flat_map(|n| {
+            let mut code = stub.code.clone();
+            let func_name = format!("{}_parameter_{}", stub.name, n);
+            code.push(py_return(name(n)));
+            let time_func = py::Funcdef {
+                code,
+                name: func_name.to_owned(),
+                ..stub.clone()
+            };
+
+            vec![funcdef_statement(time_func), assign(name(n), fcall(name("Thunk"), vec![name(&func_name)]))]
+        })
+        .collect()
 }
 
 fn basis_value(picture: &osk::Picture, i: usize) -> py::Statement {
@@ -563,6 +571,12 @@ fn codegen_standard_picture_transforms(
 
     // for each transform set
     xform_sets.iter().enumerate().for_each(|(i, t)| {
+        // assign thunks for locals in top level expression
+        let stub = env_func(&picture, xform_sets, i, 0);
+
+        if let Some(x) = &t.top_level_expression {
+            body.append(&mut xform_code_thunks(&stub, x));
+        }
         // establish basis for this transform set
         body.push(basis_value(picture, i));
 
