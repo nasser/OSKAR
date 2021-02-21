@@ -102,6 +102,25 @@ fn typed_args_list(names: Vec<&str>) -> py::TypedArgsList {
     }
 }
 
+fn untyped_args_list(names: Vec<&str>) -> py::UntypedArgsList {
+    let args = names.iter().map(|n| (n.to_string(), None)).collect();
+    py::UntypedArgsList {
+        args,
+        posonly_args: vec![],
+        star_args: py::StarParams::No,
+        keyword_args: vec![],
+        star_kwargs: None,
+    }
+}
+
+fn lambda(params: Vec<&str>, body: py::Expression) -> py::Expression {
+    py::Expression::Lambdef(untyped_args_list(params), _box(body))
+}
+
+fn ternary(then:py::Expression, condition:py::Expression, else_:py::Expression) -> py::Expression {
+    py::Expression::Ternary(_box(then), _box(condition), _box(else_))
+}
+
 fn funcdef(name: &str, params: Vec<&str>, code: Vec<py::Statement>) -> py::Funcdef {
     let name = name.to_string();
     let r#async = false;
@@ -231,6 +250,26 @@ fn iteration_networks(
     ret
 }
 
+fn iteration_thunks(
+    picture: &osk::Picture,
+    xforms: &[osk::TransformSet],
+) -> Vec<py::Statement> {
+    let mut ret = vec![];
+    xforms.iter().enumerate().rev().for_each(|(j, t)| {
+        let identifier = match &t.num_pics.identifier {
+            Some(id) => name(&id),
+            _ => name("i"),
+        };
+        let value = if t.iteration {
+            fcall(name("Thunk"), vec![lambda(vec![], get_iteration_value(picture, j))])
+        } else {
+            integer(0)
+        };
+        ret.push(assign(identifier, value));
+    });
+    ret
+}
+
 fn get_iteration_value(picture: &osk::Picture, i: usize) -> py::Expression {
     fcall(
         name("iteration_value"),
@@ -254,6 +293,12 @@ fn env_func(
         assign(name("pt"), fcall(pt, vec![])),
         assign(name("t"), name("pt")),
     ];
+    for parameter in &picture.parameters {
+        // parameter variables
+        let p = name(&parameter);
+        let _p = name(&format!("_{}", parameter));
+        body.push(assign(p, ternary(fcall(_p.clone(), vec![]), fcall(name("isinstance"), vec![_p.clone(), name("Thunk")]), _p)))
+    }
     xforms.iter().enumerate().rev().for_each(|(j, t)| {
         // iteration variables
         if j >= i {
@@ -505,6 +550,9 @@ fn codegen_standard_picture_transforms(
     // create iteration networks
     body.append(&mut iteration_networks(picture, &xform_sets));
 
+    // create iteration thunk locals
+    body.append(&mut iteration_thunks(picture, &xform_sets));
+
     // create time functions
     xform_sets.iter().enumerate().rev().for_each(|(i, _t)| {
         let stub = env_func(&picture, xform_sets, i, 0);
@@ -591,12 +639,14 @@ fn codegen_standard_picture(picture: osk::Picture) -> Vec<py::Statement> {
         osk::Operations::Csg(ref csgs) => codegen_standard_picture_csg(&picture, csgs),
     };
 
-    let mut parameters = vec!["root", "_pt"];
-    picture.parameters.iter().for_each(|p| parameters.push(&p));
+    let mut parameters = vec!["root".to_string(), "_pt".to_string()];
+    for p in picture.parameters {
+        parameters.push(format!("_{}", p));
+    }
 
     vec![funcdef_statement(funcdef(
         &picture.identifier,
-        parameters,
+        parameters.iter().map(AsRef::as_ref).collect(),
         body,
     ))]
 }

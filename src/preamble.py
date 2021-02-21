@@ -1,6 +1,13 @@
 import math
 import hou
 
+class Thunk:
+    def __init__(self, f):
+        self.f = f
+    
+    def __call__(self):
+        return self.f()
+
 def sin(x):
     """
     sin function that operates on degrees
