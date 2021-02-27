@@ -550,11 +550,21 @@ fn establish_out(
     }
 }
 
+fn assign_parameters_to_locals(picture:&osk::Picture) -> Vec<py::Statement> {
+    picture.parameters
+        .iter()
+        .map(|p| assign(name(p), name(&format!("_{}", p))))
+        .collect()
+}
+
 fn codegen_standard_picture_transforms(
     picture: &osk::Picture,
     xform_sets: &[osk::TransformSet],
 ) -> Vec<py::Statement> {
     let mut body = vec![];
+    // assign parameters to correct local names
+    body.append(&mut assign_parameters_to_locals(picture));
+
     // create iteration networks
     body.append(&mut iteration_networks(picture, &xform_sets));
 
