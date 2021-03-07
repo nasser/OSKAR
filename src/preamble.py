@@ -89,7 +89,8 @@ def iteration_value(path):
     node. this function is only useful inside a parameter expression.
     """
     geo = hou.node(path).geometry()
-    return float(geo.attribValue("iteration")) / (geo.attribValue("numiterations") - 1)
+    iteration_count = geo.attribValue("numiterations")
+    return 0 if iteration_count == 1 else float(geo.attribValue("iteration")) / (geo.attribValue("numiterations") - 1)
 
 def create_boolean(root, lhs, rhs, op):
     boolean = root.createNode('boolean')
