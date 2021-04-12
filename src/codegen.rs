@@ -315,18 +315,18 @@ fn env_func(
     funcdef(&env_func_name_str(&picture.identifier, i, j), vec![], body)
 }
 
-fn time_func(stub: &py::Funcdef) -> py::Statement {
+fn time_func_and_thunk(stub: &py::Funcdef) -> Vec<py::Statement> {
     let mut code = stub.code.clone();
     // TODO time function name is duplicated
     let func_name = format!("{}_local_time", stub.name);
     code.push(py_return(name("t")));
     let time_func = py::Funcdef {
         code,
-        name: func_name,
+        name: func_name.clone(),
         ..stub.clone()
     };
 
-    funcdef_statement(time_func)
+    vec![funcdef_statement(time_func), assign(name("t"), fcall(name("Thunk"), vec![name(&func_name)]))]
 }
 
 fn xform_code_thunks(stub: &py::Funcdef, statements:&osk::TransformSetStatements) -> Vec<py::Statement> {
@@ -576,7 +576,7 @@ fn codegen_standard_picture_transforms(
         let stub = env_func(&picture, xform_sets, i, 0);
 
         // declare local time function
-        body.push(time_func(&stub));
+        body.append(&mut time_func_and_thunk(&stub));
     });
 
     // for each transform set
