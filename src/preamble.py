@@ -8,6 +8,33 @@ class Thunk:
     def __call__(self):
         return self.f()
 
+def setCamera(position, lookat, projection="perspective"):
+    """
+    Creates a camera at `position` looking at `lookat` and sets the houdini view
+    to use that camera. `position` and `lookat` are passed in as tuples of x, y,
+    z coordinates. The projection is perspective by default but can be set to
+    orthographic by passing "ortho" as the third argument.
+    """
+    root = hou.node("/obj")
+    camera = root.createNode("cam", "oskar_camera")
+    null = root.createNode("null", "oskar_camera_target")
+    camera.parm("projection").set(projection)
+    camera.parmTuple("t").set(position)
+    null.parmTuple("t").set(lookat)
+    camera.parm("constraints_on").set(True)
+    camera.parm("constraints_path").set("constraints")
+    constraintNetwork = camera.createNode("chopnet", "constraints")
+    lookAt = constraintNetwork.createNode("constraintlookat")
+    worldspace = constraintNetwork.createNode("constraintgetworldspace")
+    targetObject = constraintNetwork.createNode("constraintobject")
+    worldspace.parm("obj_path").set("../..")
+    lookAt.parm("lookataxis").set(2)
+    lookAt.parm("lookupaxisz").set(3)
+    targetObject.parm("obj_path").set("../../../oskar_camera_target")
+    lookAt.setInput(0, worldspace)
+    lookAt.setInput(1, targetObject)
+    hou.ui.paneTabOfType(hou.paneTabType.SceneViewer).curViewport().setCamera(camera)
+
 def sin(x):
     """
     sin function that operates on degrees
