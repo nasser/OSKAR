@@ -6,8 +6,8 @@ film_picture        = { identifier ~ parameters? }
 film_parameters     = { "[" ~ film_parameter? ~ ("," ~ film_parameter)*  ~ "]"}
 film_parameter      = { identifier ~ "=" ~ expression }
 
-python_code         = ${ python_delimeter ~ python_code_line* ~ python_delimeter }
-python_code_line    = { !python_delimeter ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
+python_code         = ${ python_delimeter ~ WHITESPACE* ~ python_code_line* ~ WHITESPACE* ~ python_delimeter }
+python_code_line    = { !python_delimeter ~ (!python_delimeter ~ ANY)*  }
 python_delimeter    = _{ "***" }
 
 picture_definition  = { standard_picture | picture_function | picture_selection  }
