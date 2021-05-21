@@ -424,6 +424,10 @@ fn get_number_literal(s: &str) -> Option<py::Expression> {
     }
 }
 
+fn xform_parm_syntax_sugar(s:String) -> String {
+    s.replace("%", "pct")
+}
+
 fn set_xform_parm(
     var: &py::Expression,
     parm: &str,
@@ -434,10 +438,10 @@ fn set_xform_parm(
     if value.is_none() {
         vec![parm_set(var, parm, default)]
     } else {
-        let value_string = value.as_ref().unwrap();
-        match get_number_literal(value_string) {
+        let value_string = xform_parm_syntax_sugar(value.as_ref().unwrap().to_string());
+        match get_number_literal(&value_string) {
             Some(expr) => vec![parm_set(var, parm, expr)],
-            None => parm_set_expression(var, parm, value_string, stub),
+            None => parm_set_expression(var, parm, &value_string, stub),
         }
     }
 }
