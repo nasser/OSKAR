@@ -263,7 +263,8 @@ fn iteration_thunks(
         } else {
             integer(0)
         };
-        ret.push(assign(pct_identifier, value));
+        ret.push(assign(pct_identifier.clone(), value));
+        ret.push(assign(name("i"), pct_identifier));
     });
     ret
 }
@@ -321,7 +322,8 @@ fn env_func(
             } else {
                 integer(0)
             };
-            body.push(assign(pct_identifier, value));
+            body.push(assign(pct_identifier.clone(), value));
+            body.push(assign(name("i"), pct_identifier));
         }
     });
 
