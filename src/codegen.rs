@@ -425,7 +425,7 @@ fn get_number_literal(s: &str) -> Option<py::Expression> {
 }
 
 fn xform_parm_syntax_sugar(s:String) -> String {
-    s.replace("%", "pct")
+    s.replace("%%", "pct")
 }
 
 fn set_xform_parm(
