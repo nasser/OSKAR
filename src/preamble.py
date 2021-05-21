@@ -108,7 +108,7 @@ def Cylinder(root, pt):
 
 def iteration_value(path):
     """
-    computes the iteration value (from 0.0 to 1.0, generally 'i' in
+    computes the iteration value (from 0.0 to 1.0, generally 'i' or 'pct' in
     oskar code) value for a given houdini for-each node triplet
     identified by path.
     
@@ -118,6 +118,17 @@ def iteration_value(path):
     geo = hou.node(path).geometry()
     iteration_count = geo.attribValue("numiterations")
     return 0 if iteration_count == 1 else float(geo.attribValue("iteration")) / (geo.attribValue("numiterations") - 1)
+
+def iteration_index(path):
+    """
+    computes the iteration index (from 0 to num pics, generally 'nth' in
+    oskar code) value for a given houdini for-each node triplet
+    identified by path.
+    
+    the path is expected to be an absolute path to a for-each metadata
+    node. this function is only useful inside a parameter expression.
+    """
+    return hou.node(path).geometry().attribValue("iteration")
 
 def create_boolean(root, lhs, rhs, op):
     boolean = root.createNode('boolean')

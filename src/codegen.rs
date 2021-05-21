@@ -270,6 +270,13 @@ fn get_iteration_value(picture: &osk::Picture, i: usize) -> py::Expression {
     )
 }
 
+fn get_iteration_index(picture: &osk::Picture, i: usize) -> py::Expression {
+    fcall(
+        name("iteration_index"),
+        vec![iter_meta_name(&picture.identifier, i)],
+    )
+}
+
 fn env_func(
     picture: &osk::Picture,
     xforms: &[osk::TransformSet],
@@ -308,6 +315,9 @@ fn env_func(
             body.push(assign(identifier, value));
         }
     });
+
+    body.push(assign(name("pct"), get_iteration_value(picture, i)));
+    body.push(assign(name("nth"), get_iteration_index(picture, i)));
 
     if let Some(e) = &xforms[i].top_level_expression {
         body.append(&mut e.statements.to_owned());
