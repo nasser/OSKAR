@@ -248,17 +248,22 @@ fn iteration_thunks(
     xforms: &[osk::TransformSet],
 ) -> Vec<py::Statement> {
     let mut ret = vec![];
+    // TODO this logic is duplicated in env_func
     xforms.iter().enumerate().rev().for_each(|(j, t)| {
-        let identifier = match &t.num_pics.identifier {
-            Some(id) => name(&id),
-            _ => name("i"),
+        let nth_identifier = name(&t.num_pics.nth_identifier);
+        let value = if t.iteration {
+            fcall(name("Thunk"), vec![lambda(vec![], get_iteration_index(picture, j))])
+        } else {
+            integer(0)
         };
+        ret.push(assign(nth_identifier, value));
+        let pct_identifier = name(&t.num_pics.pct_identifier);
         let value = if t.iteration {
             fcall(name("Thunk"), vec![lambda(vec![], get_iteration_value(picture, j))])
         } else {
             integer(0)
         };
-        ret.push(assign(identifier, value));
+        ret.push(assign(pct_identifier, value));
     });
     ret
 }
@@ -300,24 +305,25 @@ fn env_func(
         body.push(assign(p, ternary(fcall(_p.clone(), vec![]), fcall(name("isinstance"), vec![_p.clone(), name("Thunk")]), _p)))
     }
     xforms.iter().enumerate().rev().for_each(|(j, t)| {
+        // TODO this logic is duplicated in iteration_thunks
         // iteration variables
         if j >= i {
-            // later xform sets cannot see earlier iteration vars
-            let identifier = match &t.num_pics.identifier {
-                Some(id) => name(&id),
-                _ => name("i"),
+            let nth_identifier = name(&t.num_pics.nth_identifier);
+            let value = if t.iteration {
+                get_iteration_index(picture, j)
+            } else {
+                integer(0)
             };
+            body.push(assign(nth_identifier, value));
+            let pct_identifier = name(&t.num_pics.pct_identifier);
             let value = if t.iteration {
                 get_iteration_value(picture, j)
             } else {
                 integer(0)
             };
-            body.push(assign(identifier, value));
+            body.push(assign(pct_identifier, value));
         }
     });
-
-    body.push(assign(name("pct"), get_iteration_value(picture, i)));
-    body.push(assign(name("nth"), get_iteration_index(picture, i)));
 
     if let Some(e) = &xforms[i].top_level_expression {
         body.append(&mut e.statements.to_owned());

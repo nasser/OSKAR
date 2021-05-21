@@ -63,7 +63,8 @@ pub struct TransformSetStatements {
 #[derive(Debug)]
 pub struct NumPics {
     pub number: String,
-    pub identifier: Option<String>,
+    pub nth_identifier: String,
+    pub pct_identifier: String,
 }
 
 #[derive(Debug)]
@@ -177,12 +178,28 @@ fn analyze_python_code(pairs: &mut Pairs<Rule>) -> PythonCodeBlock {
 
 fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
     let number = pairs.next().unwrap().as_str().to_string();
-    let identifier = match pairs.peek() {
-        Some(x) => Some(x.as_str().to_string()),
-        None => None,
+    let mut nth_identifier = "nth".to_string();
+    let mut pct_identifier = "pct".to_string();
+    match pairs.next() {
+        Some(x) => match x.as_rule() {
+            Rule::identifier => pct_identifier = x.as_str().to_string(),
+            Rule::pct_identifier => pct_identifier = x.as_str()[1..].to_string(),
+            Rule::nth_identifier => nth_identifier = x.as_str()[1..].to_string(),
+            _ => unreachable!()
+        },
+        _ => (),
+    };
+    match pairs.next() {
+        Some(x) => match x.as_rule() {
+            Rule::identifier => pct_identifier = x.as_str().to_string(),
+            Rule::pct_identifier => pct_identifier = x.as_str()[1..].to_string(),
+            Rule::nth_identifier => nth_identifier = x.as_str()[1..].to_string(),
+            _ => unreachable!()
+        },
+        _ => (),
     };
 
-    NumPics { number, identifier }
+    NumPics { number, nth_identifier, pct_identifier }
 }
 
 fn analyze_transform_argument(pair: Pair<Rule>) -> Option<String> {
