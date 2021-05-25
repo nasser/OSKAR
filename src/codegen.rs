@@ -393,13 +393,11 @@ fn parm_set(node: &py::Expression, parm_name: &str, value: py::Expression) -> py
     ))
 }
 
-fn parm_set_expression(
-    node: &py::Expression,
+fn expression_function(
     parm_name: &str,
     expression: &str,
     stub: &py::Funcdef,
-) -> Vec<py::Statement> {
-    let hou_expr_language_python = attribute(attribute(name("hou"), "exprLanguage"), "Python");
+) -> (String, py::Statement) {
     let mut code = stub.code.clone();
     let func_name = format!("{}_parm_{}", stub.name, parm_name);
     code.push(py_return(to_python_expression(expression)));
@@ -408,12 +406,23 @@ fn parm_set_expression(
         name: func_name.clone(),
         ..stub.clone()
     };
+    (func_name, funcdef_statement(parm_func))
+}
+
+fn parm_set_expression(
+    node: &py::Expression,
+    parm_name: &str,
+    expression: &str,
+    stub: &py::Funcdef,
+) -> Vec<py::Statement> {
+    let (func_name, func_def) = expression_function(parm_name, expression, stub);
+    let hou_expr_language_python = attribute(attribute(name("hou"), "exprLanguage"), "Python");
     let parm_expr_string = bop_mod(
         string("%s()"),
         fcall(name("export_function"), vec![name(&func_name)]),
     );
     vec![
-        funcdef_statement(parm_func),
+        func_def,
         statement(mcall(
             mcall(node.clone(), "parm", vec![string(parm_name)]),
             "setExpression",
@@ -456,6 +465,15 @@ fn set_name(target: py::Expression, name_argument: &str) -> py::Expression {
     )
 }
 
+static COLOR_NODE_CODE : &str = "import colorsys
+def color_attribute(geo):
+    return geo.findPointAttrib(\"Cd\") or geo.addAttrib(hou.attribType.Point, \"Cd\", (0.0, 0.0, 0.0))
+geo = hou.pwd().geometry()
+attr = color_attribute(geo)
+f = hou.expressionGlobals()['%s']
+for point in geo.points():
+    point.setAttribValue(attr, colorsys.hsv_to_rgb(*f()))";
+
 fn make_transform_node(
     root: py::Expression,
     picture: &osk::Picture,
@@ -471,7 +489,7 @@ fn make_transform_node(
     ));
 
     let node_type = match xform {
-        osk::Transform::Color(_, _, _) => "attribexpression",
+        osk::Transform::Color(_, _, _) => "python",
         _ => "xform"
     };
     ret.push(assign(
@@ -509,13 +527,13 @@ fn make_transform_node(
         }
         osk::Transform::Color(h, s, v) => {
             let node_name = &format!("{}_{}_{}_color", picture.identifier, set_index, xform_index);
-            ret.push(parm_set(&var, "preset1", string("")));
-            ret.push(parm_set(&var, "name1", string("Cd")));
-            ret.push(parm_set(&var, "type1", string("vector")));
-            ret.push(parm_set(&var, "snippet1", string("value")));
-            ret.append(&mut set_xform_parm(&var, "valv3_1x", h, &stub));
-            ret.append(&mut set_xform_parm(&var, "valv3_1y", s, &stub));
-            ret.append(&mut set_xform_parm(&var, "valv3_1z", v, &stub));
+            let code = COLOR_NODE_CODE;
+            let (func_name, func_def) = expression_function("color", &format!("(({}),({}),({}))", h, s, v), &stub);
+            ret.push(func_def);
+            ret.push(parm_set(&var, "python", bop_mod(
+                string(&code),
+                fcall(name("export_function"), vec![name(&func_name)]),
+            )));
             ret.push(statement(set_name(var, node_name)));
         }
     };

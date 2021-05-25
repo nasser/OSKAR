@@ -1,5 +1,4 @@
 import math
-import colorsys
 import hou
 
 class Thunk:
