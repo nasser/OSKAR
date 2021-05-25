@@ -69,9 +69,10 @@ pub struct NumPics {
 
 #[derive(Debug)]
 pub enum Transform {
-    Scale(Option<String>, Option<String>, Option<String>),
-    Translate(Option<String>, Option<String>, Option<String>),
-    Rotate(Option<String>, Option<String>, Option<String>),
+    Scale(String, String, String),
+    Translate(String, String, String),
+    Rotate(String, String, String),
+    Color(String, String, String),
 }
 
 #[derive(Debug)]
@@ -219,21 +220,32 @@ fn analyze_transform_arguments(
     (x, y, z)
 }
 
+fn default(v:Option<String>, default:&str) -> String {
+    match v {
+        None => default.to_string(),
+        Some(vv) => vv
+    }
+}
+
 fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Vec<Transform> {
     let mut transforms: Vec<Transform> = vec![];
     for pair in pairs {
         let transform = match pair.as_rule() {
             Rule::translate_transform => {
                 let (x, y, z) = analyze_transform_arguments(&mut pair.into_inner());
-                Transform::Translate(x, y, z)
+                Transform::Translate(default(x, "0"), default(y, "0"), default(z, "0"))
             }
             Rule::scale_transform => {
                 let (x, y, z) = analyze_transform_arguments(&mut pair.into_inner());
-                Transform::Scale(x, y, z)
+                Transform::Scale(default(x, "1"), default(y, "1"), default(z, "1"))
             }
             Rule::rotate_transform => {
                 let (x, y, z) = analyze_transform_arguments(&mut pair.into_inner());
-                Transform::Rotate(x, y, z)
+                Transform::Rotate(default(x, "0"), default(y, "0"), default(z, "0"))
+            }
+            Rule::color_transform => {
+                let (x, y, z) = analyze_transform_arguments(&mut pair.into_inner());
+                Transform::Color(default(x, "1"), default(y, "1"), default(z, "1"))
             }
             _ => unreachable!(),
         };

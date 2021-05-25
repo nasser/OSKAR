@@ -37,6 +37,10 @@ fn integer(i: u64) -> py::Expression {
     py::Expression::Int(i)
 }
 
+fn float(i: f64) -> py::Expression {
+    py::Expression::Float(i)
+}
+
 fn string(s: &str) -> py::Expression {
     py::Expression::String(vec![py::PyString {
         prefix: "".to_string(),
@@ -432,25 +436,15 @@ fn get_number_literal(s: &str) -> Option<py::Expression> {
     }
 }
 
-fn xform_parm_syntax_sugar(s:String) -> String {
-    s
-}
-
 fn set_xform_parm(
     var: &py::Expression,
     parm: &str,
-    value: &Option<String>,
-    stub: &py::Funcdef,
-    default: py::Expression,
+    value: &String,
+    stub: &py::Funcdef
 ) -> Vec<py::Statement> {
-    if value.is_none() {
-        vec![parm_set(var, parm, default)]
-    } else {
-        let value_string = xform_parm_syntax_sugar(value.as_ref().unwrap().to_string());
-        match get_number_literal(&value_string) {
-            Some(expr) => vec![parm_set(var, parm, expr)],
-            None => parm_set_expression(var, parm, &value_string, stub),
-        }
+    match get_number_literal(&value) {
+        Some(expr) => vec![parm_set(var, parm, expr)],
+        None => parm_set_expression(var, parm, &value, stub),
     }
 }
 
@@ -475,9 +469,14 @@ fn make_transform_node(
         "{}_{}_{}",
         picture.identifier, set_index, xform_index
     ));
+
+    let node_type = match xform {
+        osk::Transform::Color(_, _, _) => "attribexpression",
+        _ => "xform"
+    };
     ret.push(assign(
         var.clone(),
-        mcall(root, "createNode", vec![string("xform")]),
+        mcall(root, "createNode", vec![string(node_type)]),
     ));
 
     match xform {
@@ -486,9 +485,9 @@ fn make_transform_node(
                 "{}_{}_{}_translate",
                 picture.identifier, set_index, xform_index
             );
-            ret.append(&mut set_xform_parm(&var, "tx", x, &stub, integer(0)));
-            ret.append(&mut set_xform_parm(&var, "ty", y, &stub, integer(0)));
-            ret.append(&mut set_xform_parm(&var, "tz", z, &stub, integer(0)));
+            ret.append(&mut set_xform_parm(&var, "tx", x, &stub));
+            ret.append(&mut set_xform_parm(&var, "ty", y, &stub));
+            ret.append(&mut set_xform_parm(&var, "tz", z, &stub));
             ret.push(statement(set_name(var, name)));
         }
         osk::Transform::Rotate(x, y, z) => {
@@ -496,17 +495,28 @@ fn make_transform_node(
                 "{}_{}_{}_rotate",
                 picture.identifier, set_index, xform_index
             );
-            ret.append(&mut set_xform_parm(&var, "rx", x, &stub, integer(0)));
-            ret.append(&mut set_xform_parm(&var, "ry", y, &stub, integer(0)));
-            ret.append(&mut set_xform_parm(&var, "rz", z, &stub, integer(0)));
+            ret.append(&mut set_xform_parm(&var, "rx", x, &stub));
+            ret.append(&mut set_xform_parm(&var, "ry", y, &stub));
+            ret.append(&mut set_xform_parm(&var, "rz", z, &stub));
             ret.push(statement(set_name(var, name)));
         }
         osk::Transform::Scale(x, y, z) => {
             let name = &format!("{}_{}_{}_scale", picture.identifier, set_index, xform_index);
-            ret.append(&mut set_xform_parm(&var, "sx", x, &stub, integer(1)));
-            ret.append(&mut set_xform_parm(&var, "sy", y, &stub, integer(1)));
-            ret.append(&mut set_xform_parm(&var, "sz", z, &stub, integer(1)));
+            ret.append(&mut set_xform_parm(&var, "sx", x, &stub));
+            ret.append(&mut set_xform_parm(&var, "sy", y, &stub));
+            ret.append(&mut set_xform_parm(&var, "sz", z, &stub));
             ret.push(statement(set_name(var, name)));
+        }
+        osk::Transform::Color(h, s, v) => {
+            let node_name = &format!("{}_{}_{}_color", picture.identifier, set_index, xform_index);
+            ret.push(parm_set(&var, "preset1", string("")));
+            ret.push(parm_set(&var, "name1", string("Cd")));
+            ret.push(parm_set(&var, "type1", string("vector")));
+            ret.push(parm_set(&var, "snippet1", string("value")));
+            ret.append(&mut set_xform_parm(&var, "valv3_1x", h, &stub));
+            ret.append(&mut set_xform_parm(&var, "valv3_1y", s, &stub));
+            ret.append(&mut set_xform_parm(&var, "valv3_1z", v, &stub));
+            ret.push(statement(set_name(var, node_name)));
         }
     };
     ret
