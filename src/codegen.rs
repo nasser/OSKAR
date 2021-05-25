@@ -37,10 +37,6 @@ fn integer(i: u64) -> py::Expression {
     py::Expression::Int(i)
 }
 
-fn float(i: f64) -> py::Expression {
-    py::Expression::Float(i)
-}
-
 fn string(s: &str) -> py::Expression {
     py::Expression::String(vec![py::PyString {
         prefix: "".to_string(),
