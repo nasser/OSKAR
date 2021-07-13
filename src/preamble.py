@@ -8,7 +8,7 @@ class Thunk:
     def __call__(self):
         return self.f()
 
-def setCamera(position, lookat, projection="perspective"):
+def setCamera(position, lookat, projection="perspective", near_clipping=0.001):
     """
     Creates a camera at `position` looking at `lookat` and sets the houdini view
     to use that camera. `position` and `lookat` are passed in as tuples of x, y,
@@ -22,6 +22,7 @@ def setCamera(position, lookat, projection="perspective"):
     camera.parmTuple("t").set(position)
     null.parmTuple("t").set(lookat)
     camera.parm("constraints_on").set(True)
+    camera.parm("near").set(near_clipping)
     camera.parm("constraints_path").set("constraints")
     constraintNetwork = camera.createNode("chopnet", "constraints")
     lookAt = constraintNetwork.createNode("constraintlookat")
