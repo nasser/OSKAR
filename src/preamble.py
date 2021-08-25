@@ -105,6 +105,7 @@ def Cylinder(root, pt):
     cylinder = root.createNode('tube')
     cylinder.parmTuple('rad').set((.5,.5))
     cylinder.parmTuple('t').set((.5,.5,.5))
+    cylinder.parm('type').set("poly")
     return cylinder
 
 def iteration_value(path):
