@@ -21,6 +21,7 @@ def setCamera(position, lookat, projection="perspective", near_clipping=0.001):
     camera.parm("projection").set(projection)
     camera.parmTuple("t").set(position)
     null.parmTuple("t").set(lookat)
+    null.setDisplayFlag(0)
     camera.parm("constraints_on").set(True)
     camera.parm("near").set(near_clipping)
     camera.parm("constraints_path").set("constraints")
