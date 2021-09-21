@@ -674,7 +674,7 @@ fn codegen_standard_picture_csg(picture: &osk::Picture, csgs: &[osk::Csg]) -> Ve
     ));
     csgs.iter().for_each(|csg| {
         let var = var.clone();
-        let (rhs, boolean_mode) = match csg {
+        let (rhs, operation) = match csg {
             osk::Csg::Union(invoke) => (
                 csg_invoke(&invoke, vec![name("root"), name("_pt")]),
                 string("union"),
@@ -687,12 +687,16 @@ fn codegen_standard_picture_csg(picture: &osk::Picture, csgs: &[osk::Csg]) -> Ve
                 csg_invoke(&invoke, vec![name("root"), name("_pt")]),
                 string("subtract"),
             ),
+            osk::Csg::Concatenation(invoke) => (
+                csg_invoke(&invoke, vec![name("root"), name("_pt")]),
+                string("concatenate"),
+            ),
         };
         ret.push(assign(
             var.clone(),
             fcall(
-                name("create_boolean"),
-                vec![name("root"), var, rhs, boolean_mode],
+                name("create_csg"),
+                vec![name("root"), var, rhs, operation],
             ),
         ));
     });

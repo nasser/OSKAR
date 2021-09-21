@@ -149,12 +149,18 @@ def iteration_index(path):
     """
     return hou.node(path).geometry().attribValue("iteration")
 
-def create_boolean(root, lhs, rhs, op):
-    boolean = root.createNode('boolean')
-    boolean.parm('booleanop').set(op)
-    connect(boolean, lhs, 0)
-    connect(boolean, rhs, 1)
-    return boolean
+def create_csg(root, lhs, rhs, op):
+    if op == 'concatenate':
+        merge = root.createNode('merge')
+        connect(merge, lhs, 0)
+        connect(merge, rhs, 1)
+        return merge
+    else:
+        boolean = root.createNode('boolean')
+        boolean.parm('booleanop').set(op)
+        connect(boolean, lhs, 0)
+        connect(boolean, rhs, 1)
+        return boolean
 
 _name_count = {}
 def unique(s):

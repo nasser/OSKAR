@@ -44,6 +44,7 @@ pub enum Csg {
     Union(Invoke),
     Difference(Invoke),
     Intersection(Invoke),
+    Concatenation(Invoke),
 }
 
 #[derive(Debug)]
@@ -327,6 +328,7 @@ fn analyze_csg_operation(pairs: &mut Pairs<Rule>) -> Csg {
         "+" => Csg::Union(analyze_invoke(pairs)),
         "-" => Csg::Difference(analyze_invoke(pairs)),
         "n" => Csg::Intersection(analyze_invoke(pairs)),
+        "&" => Csg::Concatenation(analyze_invoke(pairs)),
         x => unreachable!("unsupported csg operator {:?}", x),
     }
 }

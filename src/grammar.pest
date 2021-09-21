@@ -43,7 +43,7 @@ picture_list_item   = _{ identifier ~ parameters? }
 
 csg_operation       = { csg_operator ~ csg_operand }
 csg_operand         = _{ identifier ~ parameters? }
-csg_operator        = { "+" | "-" | "n" }
+csg_operator        = { "+" | "-" | "n" | "&" }
 
 parameters          = { "(" ~ expression? ~ ("," ~ expression)* ~ ")" }
 empty_paramaters    = _{ "(" ~ ")" }
