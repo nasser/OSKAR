@@ -37,6 +37,22 @@ def setCamera(position, lookat, projection="perspective", near_clipping=0.001):
     lookAt.setInput(1, targetObject)
     hou.ui.paneTabOfType(hou.paneTabType.SceneViewer).curViewport().setCamera(camera)
 
+def ensureVcomment(camera):
+    try:
+        hou_parm_template_group = camera.parmTemplateGroup()
+        hou_parm_template = hou.FolderParmTemplate("stdswitcher3_4", "OpenGL View")
+        hou_parm_template2 = hou.StringParmTemplate("vcomment", "Viewport Comment", 1)
+        hou_parm_template.addParmTemplate(hou_parm_template2)
+        hou_parm_template_group.append(hou_parm_template)
+        camera.setParmTemplateGroup(hou_parm_template_group)
+    except Exception as e:
+        pass
+
+def setCameraText(text):
+    camera = hou.node("/obj/oskar_camera/")
+    ensureVcomment(camera)
+    camera.parm("vcomment").set(text)
+
 def sin(x):
     """
     sin function that operates on degrees
