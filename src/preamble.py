@@ -16,8 +16,12 @@ def setCamera(position, lookat, projection="perspective", near_clipping=0.001):
     orthographic by passing "ortho" as the third argument.
     """
     root = hou.node("/obj")
-    camera = root.createNode("cam", "oskar_camera")
-    null = root.createNode("null", "oskar_camera_target")
+    camera = root.node("oskar_camera")
+    if camera == None:
+        camera = root.createNode("cam", "oskar_camera")
+    null = root.node("oskar_camera_target")
+    if null == None:
+        null = root.createNode("null", "oskar_camera_target")
     camera.parm("projection").set(projection)
     camera.parmTuple("t").set(position)
     null.parmTuple("t").set(lookat)
