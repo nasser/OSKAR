@@ -8,6 +8,15 @@ class Thunk:
     def __call__(self):
         return self.f()
 
+def unwrap(x):
+    """
+    If x is a Thunk, evaluate x to get its value. Otherwise return x.
+    
+    Useful in situations where x might be a Thunk, e.g. when processing
+    parameters in custom picture definitions.
+    """
+    return x() if isinstance(x, Thunk) else x
+
 def setCamera(position, lookat, projection="perspective", near_clipping=0.001, orthowidth=2):
     """
     Creates a camera at `position` looking at `lookat` and sets the houdini view
