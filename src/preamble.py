@@ -28,6 +28,7 @@ def setCamera(position, lookat, projection="perspective", near_clipping=0.001, o
     null.setDisplayFlag(0)
     camera.parm("constraints_on").set(True)
     camera.parm("near").set(near_clipping)
+    camera.parm("orthowidth").set(orthowidth)
     camera.parm("constraints_path").set("constraints")
     constraintNetwork = camera.createNode("chopnet", "constraints")
     lookAt = constraintNetwork.createNode("constraintlookat")
