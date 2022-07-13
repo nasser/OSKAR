@@ -226,7 +226,7 @@ fn iteration_networks(
     transforms.iter().enumerate().for_each(|(i, t)| {
         if t.iteration {
             let iter_name = format!("{}_{}_iteration", picture.identifier, i);
-            let iter_value = to_python_expression(&t.num_pics.number);
+            let iter_value = to_python_expression(&t.num_pics.value);
             ret.push(assign(
                 tuple(vec![
                     iter_begin_name(&picture.identifier, i),

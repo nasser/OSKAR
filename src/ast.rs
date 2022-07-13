@@ -63,7 +63,7 @@ pub struct TransformSetStatements {
 
 #[derive(Debug)]
 pub struct NumPics {
-    pub number: String,
+    pub value: String,
     pub nth_identifier: String,
     pub pct_identifier: String,
 }
@@ -179,7 +179,7 @@ fn analyze_python_code(pairs: &mut Pairs<Rule>) -> PythonCodeBlock {
 }
 
 fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
-    let number = pairs.next().unwrap().as_str().to_string();
+    let value = pairs.next().unwrap().as_str().to_string();
     let mut nth_identifier = "nth".to_string();
     let mut pct_identifier = "pct".to_string();
     match pairs.next() {
@@ -201,7 +201,7 @@ fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
         _ => (),
     };
 
-    NumPics { number, nth_identifier, pct_identifier }
+    NumPics { value, nth_identifier, pct_identifier }
 }
 
 fn analyze_transform_argument(pair: Pair<Rule>) -> Option<String> {
@@ -294,7 +294,7 @@ fn analyze_transform_set(pairs: &mut Pairs<Rule>) -> TransformSet {
     let num_pics = analyze_num_pics(&mut pairs.next().unwrap().into_inner());
     let top_level_expression = analyze_transform_expression(pairs);
     let transforms = analyze_transforms(pairs);
-    let iteration = match num_pics.number.parse::<i32>() {
+    let iteration = match num_pics.value.parse::<i32>() {
         Ok(n) => n > 1,
         _ => true,
     };
