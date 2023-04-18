@@ -61,11 +61,7 @@ fn compile(path: String) {
     );
     println!("### from {}\n", path);
 
-    println!("### preamble\n{}", codegen::preamble());
-    println!("### establish root\n{}", codegen::establish_root(&name));
-    // TODO make this optional
-    println!("### clear root\nfor __i in root.children(): __i.destroy()\n");
-    println!("### begin film\n");
+    println!("{}", codegen::preamble());
 
     for pair in pairs {
         let source = pair.as_str();

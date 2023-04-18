@@ -110,7 +110,11 @@ fn lambda(params: Vec<&str>, body: py::Expression) -> py::Expression {
     py::Expression::Lambdef(untyped_args_list(params), _box(body))
 }
 
-fn ternary(then:py::Expression, condition:py::Expression, else_:py::Expression) -> py::Expression {
+fn ternary(
+    then: py::Expression,
+    condition: py::Expression,
+    else_: py::Expression,
+) -> py::Expression {
     py::Expression::Ternary(_box(then), _box(condition), _box(else_))
 }
 
@@ -152,34 +156,38 @@ fn hou_make_visible(target: py::Expression) -> py::Expression {
     mcall(target, "setDisplayFlag", vec![py::Expression::Int(1)])
 }
 
-fn codegen_film(film: osk::Film) -> Vec<py::Statement> {
-    let mut parameters = vec![name("root"), name("t")];
-    film.picture
-        .parameters
-        .iter()
-        .for_each(|s| parameters.push(name(s)));
-    let mut film_func_body = vec![
-        assign(
-            name("node"),
-            fcall(name(&film.picture.identifier), parameters),
-        ),
-        statement(hou_make_visible(name("node"))),
-    ];
-    film.film_parameters
-        .iter()
-        .for_each(|(k, v)| match k.as_ref() {
-            "Frames" => film_func_body.push(statement(mcall(
-                name("hou.playbar"),
-                "setFrameRange",
-                vec![integer(0), to_python_expression(v)],
-            ))),
-            _ => (),
-        });
-    let film_func = funcdef_statement(funcdef("Film", vec!["root", "t"], film_func_body));
-    vec![
-        film_func,
-        statement(fcall(name("Film"), vec![name("root"), name("global_time")])),
-    ]
+fn codegen_film(film: osk::Film) -> py::Statement {
+    statement(fcall(
+        name("osk_film"),
+        vec![name(&film.picture.identifier)],
+    ))
+    // let mut parameters = vec![name("root"), name("t")];
+    // film.picture
+    //     .parameters
+    //     .iter()
+    //     .for_each(|s| parameters.push(name(s)));
+    // let mut film_func_body = vec![
+    //     assign(
+    //         name("node"),
+    //         fcall(name(&film.picture.identifier), parameters),
+    //     ),
+    //     statement(hou_make_visible(name("node"))),
+    // ];
+    // film.film_parameters
+    //     .iter()
+    //     .for_each(|(k, v)| match k.as_ref() {
+    //         "Frames" => film_func_body.push(statement(mcall(
+    //             name("hou.playbar"),
+    //             "setFrameRange",
+    //             vec![integer(0), to_python_expression(v)],
+    //         ))),
+    //         _ => (),
+    //     });
+    // let film_func = funcdef_statement(funcdef("Film", vec!["root", "t"], film_func_body));
+    // vec![
+    //     film_func,
+    //     statement(fcall(name("Film"), vec![name("root"), name("global_time")])),
+    // ]
 }
 
 fn iter_begin_name(picture_name: &str, i: usize) -> py::Expression {
@@ -243,23 +251,26 @@ fn iteration_networks(
     ret
 }
 
-fn iteration_thunks(
-    picture: &osk::Picture,
-    xforms: &[osk::TransformSet],
-) -> Vec<py::Statement> {
+fn iteration_thunks(picture: &osk::Picture, xforms: &[osk::TransformSet]) -> Vec<py::Statement> {
     let mut ret = vec![];
     // TODO this logic is duplicated in env_func
     xforms.iter().enumerate().rev().for_each(|(j, t)| {
         let nth_identifier = name(&t.num_pics.nth_identifier);
         let value = if t.iteration {
-            fcall(name("Thunk"), vec![lambda(vec![], get_iteration_index(picture, j))])
+            fcall(
+                name("Thunk"),
+                vec![lambda(vec![], get_iteration_index(picture, j))],
+            )
         } else {
             integer(0)
         };
         ret.push(assign(nth_identifier, value));
         let pct_identifier = name(&t.num_pics.pct_identifier);
         let value = if t.iteration {
-            fcall(name("Thunk"), vec![lambda(vec![], get_iteration_value(picture, j))])
+            fcall(
+                name("Thunk"),
+                vec![lambda(vec![], get_iteration_value(picture, j))],
+            )
         } else {
             integer(0)
         };
@@ -303,7 +314,14 @@ fn env_func(
         // parameter variables
         let p = name(&parameter);
         let _p = name(&format!("_{}", parameter));
-        body.push(assign(p, ternary(fcall(_p.clone(), vec![]), fcall(name("isinstance"), vec![_p.clone(), name("Thunk")]), _p)))
+        body.push(assign(
+            p,
+            ternary(
+                fcall(_p.clone(), vec![]),
+                fcall(name("isinstance"), vec![_p.clone(), name("Thunk")]),
+                _p,
+            ),
+        ))
     }
     xforms.iter().enumerate().rev().for_each(|(j, t)| {
         // TODO this logic is duplicated in iteration_thunks
@@ -344,11 +362,19 @@ fn time_func_and_thunk(stub: &py::Funcdef) -> Vec<py::Statement> {
         ..stub.clone()
     };
 
-    vec![funcdef_statement(time_func), assign(name("t"), fcall(name("Thunk"), vec![name(&func_name)]))]
+    vec![
+        funcdef_statement(time_func),
+        assign(name("t"), fcall(name("Thunk"), vec![name(&func_name)])),
+    ]
 }
 
-fn xform_code_thunks(stub: &py::Funcdef, statements:&osk::TransformSetStatements) -> Vec<py::Statement> {
-    statements.names.iter()
+fn xform_code_thunks(
+    stub: &py::Funcdef,
+    statements: &osk::TransformSetStatements,
+) -> Vec<py::Statement> {
+    statements
+        .names
+        .iter()
         .flat_map(|n| {
             let mut code = stub.code.clone();
             let func_name = format!("{}_parameter_{}", stub.name, n);
@@ -359,7 +385,10 @@ fn xform_code_thunks(stub: &py::Funcdef, statements:&osk::TransformSetStatements
                 ..stub.clone()
             };
 
-            vec![funcdef_statement(time_func), assign(name(n), fcall(name("Thunk"), vec![name(&func_name)]))]
+            vec![
+                funcdef_statement(time_func),
+                assign(name(n), fcall(name("Thunk"), vec![name(&func_name)])),
+            ]
         })
         .collect()
 }
@@ -445,7 +474,7 @@ fn set_xform_parm(
     var: &py::Expression,
     parm: &str,
     value: &String,
-    stub: &py::Funcdef
+    stub: &py::Funcdef,
 ) -> Vec<py::Statement> {
     match get_number_literal(&value) {
         Some(expr) => vec![parm_set(var, parm, expr)],
@@ -486,7 +515,7 @@ fn make_transform_node(
 
     let node_type = match xform {
         osk::Transform::Color(_, _, _) => "python",
-        _ => "xform"
+        _ => "xform",
     };
     ret.push(assign(
         var.clone(),
@@ -524,12 +553,17 @@ fn make_transform_node(
         osk::Transform::Color(h, s, v) => {
             let node_name = &format!("{}_{}_{}_color", picture.identifier, set_index, xform_index);
             let code = COLOR_NODE_CODE;
-            let (func_name, func_def) = expression_function("color", &format!("(({}),({}),({}))", h, s, v), &stub);
+            let (func_name, func_def) =
+                expression_function("color", &format!("(({}),({}),({}))", h, s, v), &stub);
             ret.push(func_def);
-            ret.push(parm_set(&var, "python", bop_mod(
-                string(&code),
-                fcall(name("export_function"), vec![name(&func_name)]),
-            )));
+            ret.push(parm_set(
+                &var,
+                "python",
+                bop_mod(
+                    string(&code),
+                    fcall(name("export_function"), vec![name(&func_name)]),
+                ),
+            ));
             ret.push(statement(set_name(var, node_name)));
         }
     };
@@ -596,11 +630,26 @@ fn establish_out(
     }
 }
 
-fn assign_parameters_to_locals(picture:&osk::Picture) -> Vec<py::Statement> {
-    picture.parameters
+fn assign_parameters_to_locals(picture: &osk::Picture) -> Vec<py::Statement> {
+    picture
+        .parameters
         .iter()
         .map(|p| assign(name(p), name(&format!("_{}", p))))
         .collect()
+}
+
+fn for_loop(
+    item: py::Expression,
+    iterator: py::Expression,
+    for_block: Vec<py::Statement>,
+) -> py::Statement {
+    py::Statement::Compound(_box(py::CompoundStatement::For {
+        r#async: false,
+        item: vec![item],
+        iterator: vec![iterator],
+        for_block,
+        else_block: None,
+    }))
 }
 
 fn codegen_standard_picture_transforms(
@@ -608,48 +657,78 @@ fn codegen_standard_picture_transforms(
     xform_sets: &[osk::TransformSet],
 ) -> Vec<py::Statement> {
     let mut body = vec![];
-    // assign parameters to correct local names
-    body.append(&mut assign_parameters_to_locals(picture));
-
-    // create iteration networks
-    body.append(&mut iteration_networks(picture, &xform_sets));
-
-    // create iteration thunk locals
-    body.append(&mut iteration_thunks(picture, &xform_sets));
-
-    // create time functions
-    xform_sets.iter().enumerate().rev().for_each(|(i, _t)| {
-        let stub = env_func(&picture, xform_sets, i, 0);
-
-        // declare local time function
-        body.append(&mut time_func_and_thunk(&stub));
-    });
+    let mut root = "root".to_owned();
 
     // for each transform set
-    xform_sets.iter().enumerate().for_each(|(i, t)| {
-        // assign thunks for locals in top level expression
-        let stub = env_func(&picture, xform_sets, i, 0);
+    // TODO this should recurse to generate a nested for loop
+    xform_sets
+        .iter()
+        .enumerate()
+        .for_each(|(i, transform_set)| {
+            let xform_name = format!("_xform_{}", i);
+            let mut loop_body = vec![
+                assign(
+                    name(&transform_set.num_pics.pct_identifier),
+                    py::Expression::Bop(
+                        py::Bop::Div,
+                        _box(name(&transform_set.num_pics.nth_identifier)),
+                        _box(name("numpix")),
+                    ),
+                ),
+                assign(name(&xform_name), fcall(name("Empty"), vec![name(&root)])),
+                assign(
+                    attribute(name(&xform_name), "name"),
+                    string(&picture.identifier),
+                ),
+            ];
+            for transform in &transform_set.transforms {
+                loop_body.push(statement(match transform {
+                    osk::Transform::Scale(x, y, z) => fcall(
+                        name("osk_scale"),
+                        vec![
+                            name(&xform_name),
+                            to_python_expression(x),
+                            to_python_expression(y),
+                            to_python_expression(z),
+                        ],
+                    ),
+                    osk::Transform::Translate(x, y, z) => fcall(
+                        name("osk_translate"),
+                        vec![
+                            name(&xform_name),
+                            to_python_expression(x),
+                            to_python_expression(y),
+                            to_python_expression(z),
+                        ],
+                    ),
+                    osk::Transform::Rotate(x, y, z) => fcall(
+                        name("osk_rotate"),
+                        vec![
+                            name(&xform_name),
+                            to_python_expression(x),
+                            to_python_expression(y),
+                            to_python_expression(z),
+                        ],
+                    ),
+                    osk::Transform::Color(_, _, _) => todo!(),
+                }))
+            }
 
-        if let Some(x) = &t.top_level_expression {
-            body.append(&mut xform_code_thunks(&stub, x));
-        }
-        // establish basis for this transform set
-        body.push(basis_value(picture, i));
+            // TODO this is wrong...
+            loop_body.push(statement(fcall(name(&picture.basis.identifier), vec![name(&xform_name), name("t")])));
 
-        // generate transform set nodes
-        // wire transform set nodes together
-        body.append(&mut transform_set_nodes(picture, &xform_sets, t, i));
+            body.push(assign(
+                name("numpix"),
+                to_python_expression(&transform_set.num_pics.value),
+            ));
+            body.push(for_loop(
+                name(&transform_set.num_pics.nth_identifier),
+                fcall(name("range"), vec![name("numpix")]),
+                loop_body,
+            ));
 
-        // establish out
-        body.append(&mut establish_out(picture, t, i))
-    });
-
-    // clean up and return last node
-    body.push(statement(mcall(name("root"), "layoutChildren", vec![])));
-    body.push(py_return(out_name(
-        &picture.identifier,
-        xform_sets.len() - 1,
-    )));
+            root = xform_name;
+        });
 
     body
 }
@@ -694,10 +773,7 @@ fn codegen_standard_picture_csg(picture: &osk::Picture, csgs: &[osk::Csg]) -> Ve
         };
         ret.push(assign(
             var.clone(),
-            fcall(
-                name("create_csg"),
-                vec![name("root"), var, rhs, operation],
-            ),
+            fcall(name("create_csg"), vec![name("root"), var, rhs, operation]),
         ));
     });
     ret.push(statement(mcall(name("root"), "layoutChildren", vec![])));
@@ -705,24 +781,36 @@ fn codegen_standard_picture_csg(picture: &osk::Picture, csgs: &[osk::Csg]) -> Ve
     ret
 }
 
-fn codegen_standard_picture(picture: osk::Picture) -> Vec<py::Statement> {
-    let body = match picture.operations {
+fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
+    let mut body = vec![assign(name("t"), name("pt"))];
+
+    let mut body_specific = match picture.operations {
         osk::Operations::TransformSet(ref xforms) => {
             codegen_standard_picture_transforms(&picture, xforms)
         }
-        osk::Operations::Csg(ref csgs) => codegen_standard_picture_csg(&picture, csgs),
+        osk::Operations::Csg(_) => todo!(),
     };
 
-    let mut parameters = vec!["root".to_string(), "_pt".to_string()];
-    for p in picture.parameters {
-        parameters.push(format!("_{}", p));
-    }
+    body.append(&mut body_specific);
 
-    vec![funcdef_statement(funcdef(
-        &picture.identifier,
-        parameters.iter().map(AsRef::as_ref).collect(),
-        body,
-    ))]
+    funcdef_statement(funcdef(&picture.identifier, vec!["root", "pt"], body))
+    // let body = match picture.operations {
+    //     osk::Operations::TransformSet(ref xforms) => {
+    //         codegen_standard_picture_transforms(&picture, xforms)
+    //     }
+    //     osk::Operations::Csg(ref csgs) => codegen_standard_picture_csg(&picture, csgs),
+    // };
+
+    // let mut parameters = vec!["root".to_string(), "_pt".to_string()];
+    // for p in picture.parameters {
+    //     parameters.push(format!("_{}", p));
+    // }
+
+    // vec![funcdef_statement(funcdef(
+    //     &picture.identifier,
+    //     parameters.iter().map(AsRef::as_ref).collect(),
+    //     body,
+    // ))]
 }
 
 fn codegen_picture_selection(picture_list: osk::PictureList) -> Vec<py::Statement> {
@@ -745,9 +833,13 @@ fn codegen_picture_selection(picture_list: osk::PictureList) -> Vec<py::Statemen
 
 pub fn codegen_toplevel(tl: osk::TopLevel) -> Vec<py::Statement> {
     match tl {
-        osk::TopLevel::Film(f) => codegen_film(f),
-        osk::TopLevel::Definition(osk::Definition::Standard(p)) => codegen_standard_picture(p),
-        osk::TopLevel::Definition(osk::Definition::Function(p)) => codegen_standard_picture(p),
+        osk::TopLevel::Film(f) => vec![codegen_film(f)],
+        osk::TopLevel::Definition(osk::Definition::Standard(p)) => {
+            vec![codegen_standard_picture(p)]
+        }
+        osk::TopLevel::Definition(osk::Definition::Function(p)) => {
+            vec![codegen_standard_picture(p)]
+        }
         osk::TopLevel::Definition(osk::Definition::Selection(p)) => codegen_picture_selection(p),
         osk::TopLevel::Skip => unreachable!(),
         osk::TopLevel::PythonCodeBlock(_) => unreachable!(),
@@ -756,28 +848,6 @@ pub fn codegen_toplevel(tl: osk::TopLevel) -> Vec<py::Statement> {
 
 pub fn preamble() -> &'static str {
     include_str!("preamble.py")
-}
-
-pub fn establish_root(root_name: &str) -> String {
-    // TODO does root_name need to be processed here? turn spaces into underscores?
-    format_module(&[
-        assign(
-            name("root"),
-            bop_or(
-                mcall(
-                    name("hou"),
-                    "node",
-                    vec![string(&format!("/obj/{}", root_name))],
-                ),
-                mcall(
-                    mcall(name("hou"), "node", vec![string("/obj")]),
-                    "createNode",
-                    vec![string("geo")],
-                ),
-            ),
-        ),
-        statement(mcall(name("root"), "setName", vec![string(root_name)])),
-    ])
 }
 
 pub fn to_python_source(tl: osk::TopLevel) -> String {
