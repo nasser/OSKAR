@@ -79,7 +79,7 @@ pub enum Transform {
 #[derive(Debug)]
 pub struct Film {
     pub picture: Invoke,
-    pub film_parameters: Vec<(String, String)>,
+    pub frames: String,
 }
 
 #[derive(Debug, Clone)]
@@ -162,12 +162,16 @@ fn analyze_film(pairs: &mut Pairs<Rule>) -> Film {
         );
     }
     let picture = analyze_invoke(&mut pairs.next().unwrap().into_inner());
-    let film_parameters = analyze_film_parameters(pairs);
 
-    Film {
-        picture,
-        film_parameters,
+    let mut frames = "250".to_owned();
+    for (name, value) in analyze_film_parameters(pairs) {
+        match name.to_lowercase().as_str() {
+            "frames" => frames = value,
+            _ => {}
+        }
     }
+
+    Film { picture, frames }
 }
 
 fn analyze_python_code(pairs: &mut Pairs<Rule>) -> PythonCodeBlock {
