@@ -1,6 +1,6 @@
-use python_parser::ast as py;
 use pest::iterators::*;
 use pest::*;
+use python_parser::ast as py;
 
 use crate::parser::Rule;
 
@@ -58,7 +58,7 @@ pub struct TransformSet {
 #[derive(Debug)]
 pub struct TransformSetStatements {
     pub statements: Vec<py::Statement>,
-    pub names: Vec<String>
+    pub names: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -191,7 +191,7 @@ fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
             Rule::identifier => pct_identifier = x.as_str().to_string(),
             Rule::pct_identifier => pct_identifier = x.as_str()[1..].to_string(),
             Rule::nth_identifier => nth_identifier = x.as_str()[1..].to_string(),
-            _ => unreachable!()
+            _ => unreachable!(),
         },
         _ => (),
     };
@@ -200,12 +200,16 @@ fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
             Rule::identifier => pct_identifier = x.as_str().to_string(),
             Rule::pct_identifier => pct_identifier = x.as_str()[1..].to_string(),
             Rule::nth_identifier => nth_identifier = x.as_str()[1..].to_string(),
-            _ => unreachable!()
+            _ => unreachable!(),
         },
         _ => (),
     };
 
-    NumPics { value, nth_identifier, pct_identifier }
+    NumPics {
+        value,
+        nth_identifier,
+        pct_identifier,
+    }
 }
 
 fn analyze_transform_argument(pair: Pair<Rule>) -> Option<String> {
@@ -225,10 +229,10 @@ fn analyze_transform_arguments(
     (x, y, z)
 }
 
-fn default(v:Option<String>, default:&str) -> String {
+fn default(v: Option<String>, default: &str) -> String {
     match v {
         None => default.to_string(),
-        Some(vv) => vv
+        Some(vv) => vv,
     }
 }
 
@@ -264,27 +268,28 @@ fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Option<TransformSetS
         Some(x) if x.as_rule() == Rule::expression_parens => {
             let mut code = pairs.next().unwrap().as_str().to_string();
             code.pop();
-            let statements:Vec<py::Statement> = code[1..]
-                            .split('\n')
-                            .map(|l| l.trim().to_string())
-                            .flat_map(|l| to_python_statements(&l))
-                            .collect();
-            let names = statements.iter()
+            let statements: Vec<py::Statement> = code[1..]
+                .split('\n')
+                .map(|l| l.trim().to_string())
+                .flat_map(|l| to_python_statements(&l))
+                .collect();
+            let names = statements
+                .iter()
                 .filter(|s| match s {
                     py::Statement::Assignment(_, _) => true,
-                    _ => false
+                    _ => false,
                 })
                 .flat_map(|s| match s {
                     py::Statement::Assignment(lhs, _) => lhs,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 })
                 .filter(|e| match e {
                     py::Expression::Name(_) => true,
-                    _ => false
+                    _ => false,
                 })
                 .map(|e| match e {
                     py::Expression::Name(n) => n.to_owned(),
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 })
                 .collect();
 
