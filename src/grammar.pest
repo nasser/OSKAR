@@ -35,9 +35,9 @@ expression_simple   = @{ (!("," | "(" | ")" | "[" | "]") ~ ANY)+ }
 expression_parens   = @{ ("(" ~ WHITESPACE* ~ ("," | expression)* ~ WHITESPACE* ~ ")")+ }
 expression_brackets = @{ ("[" ~ WHITESPACE* ~ ("," | expression)* ~ WHITESPACE* ~ "]")+ }
 
-picture_function    = { identifier ~ parameters? ~ "<<<" ~ basis_picture ~ transform_set* }
+picture_function    = { identifier ~ parameters? ~ "<<" ~ basis_picture ~ transform_set* }
 
-picture_selection   = { identifier ~ empty_paramaters? ~ "<<<" ~ picture_list }
+picture_selection   = { identifier ~ empty_paramaters? ~ "<<" ~ picture_list }
 
 picture_list        = _{ "[" ~ picture_list_item? ~ ("," ~ picture_list_item)* ~ "]" }
 picture_list_item   = _{ identifier ~ parameters? }
