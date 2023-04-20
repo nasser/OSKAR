@@ -98,8 +98,7 @@ def Empty(root=None, _pt=0):
     bpy.context.collection.objects.link(o)
     return o
 
-## TODO frame count etc
-def osk_film(picture):
+def osk_film(picture, frames):
     def frame_change(scene):
         osk_start_frame()
         t = (scene.frame_current % scene.frame_end) / scene.frame_end
@@ -108,6 +107,7 @@ def osk_film(picture):
     bpy.app.handlers.frame_change_pre.clear()    
     bpy.app.handlers.frame_change_pre.append(frame_change)
 
+    bpy.context.scene.frame_end = frames
     frame_change(bpy.context.scene)
 
 ### user code
