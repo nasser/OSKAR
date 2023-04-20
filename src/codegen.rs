@@ -84,7 +84,7 @@ fn statement(ex: py::Expression) -> py::Statement {
     py::Statement::Expressions(vec![ex])
 }
 
-fn typed_args_list(names: Vec<&str>) -> py::TypedArgsList {
+fn typed_args_list(names: Vec<String>) -> py::TypedArgsList {
     let args = names.iter().map(|n| (n.to_string(), None, None)).collect();
     py::TypedArgsList {
         args,
@@ -118,7 +118,7 @@ fn ternary(
     py::Expression::Ternary(_box(then), _box(condition), _box(else_))
 }
 
-fn funcdef(name: &str, params: Vec<&str>, code: Vec<py::Statement>) -> py::Funcdef {
+fn funcdef(name: &str, params: Vec<String>, code: Vec<py::Statement>) -> py::Funcdef {
     let name = name.to_string();
     let r#async = false;
     let decorators = vec![];
@@ -793,7 +793,7 @@ fn codegen_picture_selection(picture_list: osk::PictureList) -> Vec<py::Statemen
     ))];
     vec![funcdef_statement(funcdef(
         &picture_list.identifier,
-        vec!["i"],
+        vec!["i".to_owned()],
         body,
     ))]
 }
