@@ -654,83 +654,86 @@ fn for_loop(
 
 fn codegen_standard_picture_transforms(
     picture: &osk::Picture,
-    xform_sets: &[osk::TransformSet],
-) -> Vec<py::Statement> {
-    let mut body = vec![];
-    let mut root = "root".to_owned();
+    xform_sets: &Vec<osk::TransformSet>,
+    root: String,
+    i: usize,
+) -> py::Statement {
+    let xform_set = &xform_sets[xform_sets.len() - 1 - i];
+    let xform_name = format!("_xform_{}", i);
+    let mut loop_body = vec![
+        assign(
+            name(&xform_set.num_pics.pct_identifier),
+            py::Expression::Bop(
+                py::Bop::Div,
+                _box(name(&xform_set.num_pics.nth_identifier)),
+                _box(to_python_expression(&xform_set.num_pics.value)),
+            ),
+        ),
+        assign(name(&xform_name), fcall(name("Empty"), vec![name(&root)])),
+        assign(
+            attribute(name(&xform_name), "name"),
+            string(&picture.identifier),
+        ),
+    ];
+    for transform in &xform_set.transforms {
+        loop_body.push(statement(match transform {
+            osk::Transform::Scale(x, y, z) => fcall(
+                name("osk_scale"),
+                vec![
+                    name(&xform_name),
+                    to_python_expression(x),
+                    to_python_expression(y),
+                    to_python_expression(z),
+                ],
+            ),
+            osk::Transform::Translate(x, y, z) => fcall(
+                name("osk_translate"),
+                vec![
+                    name(&xform_name),
+                    to_python_expression(x),
+                    to_python_expression(y),
+                    to_python_expression(z),
+                ],
+            ),
+            osk::Transform::Rotate(x, y, z) => fcall(
+                name("osk_rotate"),
+                vec![
+                    name(&xform_name),
+                    to_python_expression(x),
+                    to_python_expression(y),
+                    to_python_expression(z),
+                ],
+            ),
+            osk::Transform::Color(_, _, _) => todo!(),
+        }))
+    }
 
-    // for each transform set
-    // TODO this should recurse to generate a nested for loop
-    xform_sets
-        .iter()
-        .enumerate()
-        .for_each(|(i, transform_set)| {
-            let xform_name = format!("_xform_{}", i);
-            let mut loop_body = vec![
-                assign(
-                    name(&transform_set.num_pics.pct_identifier),
-                    py::Expression::Bop(
-                        py::Bop::Div,
-                        _box(name(&transform_set.num_pics.nth_identifier)),
-                        _box(name("numpix")),
-                    ),
-                ),
-                assign(name(&xform_name), fcall(name("Empty"), vec![name(&root)])),
-                assign(
-                    attribute(name(&xform_name), "name"),
-                    string(&picture.identifier),
-                ),
-            ];
-            for transform in &transform_set.transforms {
-                loop_body.push(statement(match transform {
-                    osk::Transform::Scale(x, y, z) => fcall(
-                        name("osk_scale"),
-                        vec![
-                            name(&xform_name),
-                            to_python_expression(x),
-                            to_python_expression(y),
-                            to_python_expression(z),
-                        ],
-                    ),
-                    osk::Transform::Translate(x, y, z) => fcall(
-                        name("osk_translate"),
-                        vec![
-                            name(&xform_name),
-                            to_python_expression(x),
-                            to_python_expression(y),
-                            to_python_expression(z),
-                        ],
-                    ),
-                    osk::Transform::Rotate(x, y, z) => fcall(
-                        name("osk_rotate"),
-                        vec![
-                            name(&xform_name),
-                            to_python_expression(x),
-                            to_python_expression(y),
-                            to_python_expression(z),
-                        ],
-                    ),
-                    osk::Transform::Color(_, _, _) => todo!(),
-                }))
-            }
+    if i < xform_sets.len() - 1 {
+        loop_body.push(codegen_standard_picture_transforms(
+            picture,
+            xform_sets,
+            xform_name,
+            i + 1,
+        ))
+    } else {
+        let mut basis_args = vec![name(&xform_name), name("t")];
+        for p in &picture.basis.parameters {
+            basis_args.push(to_python_expression(p))
+        }
+        loop_body.push(statement(fcall(
+            name(&picture.basis.identifier),
+            basis_args,
+        )));
+    }
 
-            // TODO this is wrong...
-            loop_body.push(statement(fcall(name(&picture.basis.identifier), vec![name(&xform_name), name("t")])));
-
-            body.push(assign(
-                name("numpix"),
-                to_python_expression(&transform_set.num_pics.value),
-            ));
-            body.push(for_loop(
-                name(&transform_set.num_pics.nth_identifier),
-                fcall(name("range"), vec![name("numpix")]),
-                loop_body,
-            ));
-
-            root = xform_name;
-        });
-
-    body
+    for_loop(
+        name(&xform_set.num_pics.nth_identifier),
+        fcall(
+            name("range"),
+            vec![to_python_expression(&xform_set.num_pics.value)],
+        ),
+        loop_body,
+    )
 }
 
 fn csg_invoke(invoke: &osk::Invoke, parameters: Vec<py::Expression>) -> py::Expression {
@@ -784,33 +787,21 @@ fn codegen_standard_picture_csg(picture: &osk::Picture, csgs: &[osk::Csg]) -> Ve
 fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
     let mut body = vec![assign(name("t"), name("pt"))];
 
-    let mut body_specific = match picture.operations {
+    let body_specific = match picture.operations {
         osk::Operations::TransformSet(ref xforms) => {
-            codegen_standard_picture_transforms(&picture, xforms)
+            codegen_standard_picture_transforms(&picture, xforms, "root".to_owned(), 0)
         }
         osk::Operations::Csg(_) => todo!(),
     };
 
-    body.append(&mut body_specific);
+    body.push(body_specific);
 
-    funcdef_statement(funcdef(&picture.identifier, vec!["root", "pt"], body))
-    // let body = match picture.operations {
-    //     osk::Operations::TransformSet(ref xforms) => {
-    //         codegen_standard_picture_transforms(&picture, xforms)
-    //     }
-    //     osk::Operations::Csg(ref csgs) => codegen_standard_picture_csg(&picture, csgs),
-    // };
+    let mut funcdef_parameters = vec!["root".to_owned(), "pt".to_owned()];
+    for p in picture.parameters {
+        funcdef_parameters.push(p)
+    }
 
-    // let mut parameters = vec!["root".to_string(), "_pt".to_string()];
-    // for p in picture.parameters {
-    //     parameters.push(format!("_{}", p));
-    // }
-
-    // vec![funcdef_statement(funcdef(
-    //     &picture.identifier,
-    //     parameters.iter().map(AsRef::as_ref).collect(),
-    //     body,
-    // ))]
+    funcdef_statement(funcdef(&picture.identifier, funcdef_parameters, body))
 }
 
 fn codegen_picture_selection(picture_list: osk::PictureList) -> Vec<py::Statement> {
