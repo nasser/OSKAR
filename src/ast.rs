@@ -188,9 +188,8 @@ fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
     let mut pct_identifier = "pct".to_string();
     match pairs.next() {
         Some(x) => match x.as_rule() {
-            Rule::identifier => pct_identifier = x.as_str().to_string(),
-            Rule::pct_identifier => pct_identifier = x.as_str()[1..].to_string(),
-            Rule::nth_identifier => nth_identifier = x.as_str()[1..].to_string(),
+            Rule::identifier => nth_identifier = x.as_str().to_string(),
+            Rule::blank_argument => (),
             _ => unreachable!(),
         },
         _ => (),
@@ -198,8 +197,7 @@ fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
     match pairs.next() {
         Some(x) => match x.as_rule() {
             Rule::identifier => pct_identifier = x.as_str().to_string(),
-            Rule::pct_identifier => pct_identifier = x.as_str()[1..].to_string(),
-            Rule::nth_identifier => nth_identifier = x.as_str()[1..].to_string(),
+            Rule::blank_argument => (),
             _ => unreachable!(),
         },
         _ => (),
