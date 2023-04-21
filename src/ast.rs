@@ -58,7 +58,6 @@ pub struct TransformSet {
 #[derive(Debug)]
 pub struct TransformSetStatements {
     pub statements: Vec<py::Statement>,
-    pub names: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -271,27 +270,8 @@ fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Option<TransformSetS
                 .map(|l| l.trim().to_string())
                 .flat_map(|l| to_python_statements(&l))
                 .collect();
-            let names = statements
-                .iter()
-                .filter(|s| match s {
-                    py::Statement::Assignment(_, _) => true,
-                    _ => false,
-                })
-                .flat_map(|s| match s {
-                    py::Statement::Assignment(lhs, _) => lhs,
-                    _ => unreachable!(),
-                })
-                .filter(|e| match e {
-                    py::Expression::Name(_) => true,
-                    _ => false,
-                })
-                .map(|e| match e {
-                    py::Expression::Name(n) => n.to_owned(),
-                    _ => unreachable!(),
-                })
-                .collect();
 
-            Some(TransformSetStatements { statements, names })
+            Some(TransformSetStatements { statements })
         }
         _ => None,
     }

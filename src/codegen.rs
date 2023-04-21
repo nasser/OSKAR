@@ -344,31 +344,6 @@ fn time_func_and_thunk(stub: &py::Funcdef) -> Vec<py::Statement> {
     ]
 }
 
-fn xform_code_thunks(
-    stub: &py::Funcdef,
-    statements: &osk::TransformSetStatements,
-) -> Vec<py::Statement> {
-    statements
-        .names
-        .iter()
-        .flat_map(|n| {
-            let mut code = stub.code.clone();
-            let func_name = format!("{}_parameter_{}", stub.name, n);
-            code.push(py_return(name(n)));
-            let time_func = py::Funcdef {
-                code,
-                name: func_name.to_owned(),
-                ..stub.clone()
-            };
-
-            vec![
-                funcdef_statement(time_func),
-                assign(name(n), fcall(name("Thunk"), vec![name(&func_name)])),
-            ]
-        })
-        .collect()
-}
-
 fn basis_value(picture: &osk::Picture, i: usize) -> py::Statement {
     // TODO time function name is duplicated
     let mut basis_invocation_parameters =
@@ -651,6 +626,10 @@ fn codegen_standard_picture_transforms(
             string(&picture.identifier),
         ),
     ];
+    match xform_set.top_level_expression {
+        Some(ref e) => loop_body.append(&mut e.statements.clone()),
+        None => {},
+    }
     for transform in &xform_set.transforms {
         loop_body.push(statement(match transform {
             osk::Transform::Scale(x, y, z) => fcall(
