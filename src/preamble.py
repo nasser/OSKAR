@@ -103,6 +103,7 @@ def osk_film(picture, frames):
         osk_start_frame()
         t = (scene.frame_current % scene.frame_end) / scene.frame_end
         picture(None, t)
+        bpy.ops.object.select_all(action='DESELECT')
 
     bpy.app.handlers.frame_change_pre.clear()    
     bpy.app.handlers.frame_change_pre.append(frame_change)
