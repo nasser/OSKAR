@@ -92,6 +92,20 @@ def Sphere(root=None, _pt=0):
     bpy.context.collection.objects.link(copy)
     return copy
 
+def Camera(root=None, _pt=0):
+    camera_data = bpy.data.cameras.new("Camera")
+    camera = bpy.data.objects.new("Camera", camera_data)
+    camera.parent = root
+    bpy.context.collection.objects.link(camera)
+    return camera
+
+def Light(root=None, pt=0, type='POINT'):
+    light_data = bpy.data.lights.new(name="Light", type=type)
+    light = bpy.data.objects.new("Light", light_data)
+    light.parent = root
+    bpy.context.collection.objects.link(light)
+    return light
+
 def Empty(root=None, _pt=0):
     o = bpy.data.objects.new( "empty", None )
     o.parent = root
