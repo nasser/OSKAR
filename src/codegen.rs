@@ -198,7 +198,10 @@ fn codegen_standard_picture_transforms(
                 _box(to_python_expression(&xform_set.num_pics.value)),
             ),
         ),
-        assign(name(&xform_name), fcall_positional(name("Empty"), vec![name(&root)])),
+        assign(
+            name(&xform_name),
+            fcall_positional(name("Empty"), vec![name(&root)]),
+        ),
         assign(
             attribute(name(&xform_name), "name"),
             string(&picture.identifier),
@@ -209,8 +212,8 @@ fn codegen_standard_picture_transforms(
         None => {}
     }
     for transform in &xform_set.transforms {
-        loop_body.push(statement(match transform {
-            osk::Transform::Scale(x, y, z) => fcall_positional(
+        loop_body.push(match transform {
+            osk::Transform::Scale(x, y, z) => statement(fcall_positional(
                 name("osk_scale"),
                 vec![
                     name(&xform_name),
@@ -218,8 +221,8 @@ fn codegen_standard_picture_transforms(
                     to_python_expression(y),
                     to_python_expression(z),
                 ],
-            ),
-            osk::Transform::Translate(x, y, z) => fcall_positional(
+            )),
+            osk::Transform::Translate(x, y, z) => statement(fcall_positional(
                 name("osk_translate"),
                 vec![
                     name(&xform_name),
@@ -227,8 +230,8 @@ fn codegen_standard_picture_transforms(
                     to_python_expression(y),
                     to_python_expression(z),
                 ],
-            ),
-            osk::Transform::Rotate(x, y, z) => fcall_positional(
+            )),
+            osk::Transform::Rotate(x, y, z) => statement(fcall_positional(
                 name("osk_rotate"),
                 vec![
                     name(&xform_name),
@@ -236,9 +239,19 @@ fn codegen_standard_picture_transforms(
                     to_python_expression(y),
                     to_python_expression(z),
                 ],
+            )),
+            osk::Transform::Color(r, g, b) => assign(
+                name("material"),
+                fcall_positional(
+                    name("osk_material"),
+                    vec![
+                        to_python_expression(r),
+                        to_python_expression(g),
+                        to_python_expression(b),
+                    ],
+                ),
             ),
-            osk::Transform::Color(_, _, _) => todo!(),
-        }))
+        })
     }
 
     if i < xform_sets.len() - 1 {
@@ -249,7 +262,7 @@ fn codegen_standard_picture_transforms(
             i + 1,
         ))
     } else {
-        let mut basis_args = vec![name(&xform_name), name("t")];
+        let mut basis_args = vec![name(&xform_name), name("t"), name("material")];
         for p in &picture.basis.parameters {
             basis_args.push(to_python_expression(p))
         }
@@ -281,7 +294,7 @@ fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
 
     body.push(body_specific);
 
-    let mut funcdef_parameters = vec!["root".to_owned(), "pt".to_owned()];
+    let mut funcdef_parameters = vec!["root".to_owned(), "pt".to_owned(), "material".to_owned()];
     for p in picture.parameters {
         funcdef_parameters.push(p)
     }
@@ -299,7 +312,7 @@ fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
                 .map(|i| {
                     let mut user_args: Vec<py::Expression> =
                         i.parameters.iter().map(|p| name(&p)).collect();
-                    let mut args = vec![name("root"), name("pt")];
+                    let mut args = vec![name("root"), name("pt"), name("material")];
                     args.append(&mut user_args);
                     statement(fcall_positional(name(&i.identifier), args))
                 })
@@ -337,8 +350,8 @@ fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
     )];
     vec![funcdef_statement(funcdef_defaults(
         &picture_list.identifier,
-        vec!["root".to_owned(), "pt".to_owned(), "i".to_owned()],
-        vec![None, None, Some(py::Expression::None)],
+        vec!["root".to_owned(), "pt".to_owned(), "material".to_owned(), "i".to_owned()],
+        vec![None, None, None, Some(py::Expression::None)],
         body,
     ))]
 }
