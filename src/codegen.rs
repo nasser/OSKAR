@@ -44,6 +44,13 @@ fn string(s: &str) -> py::Expression {
     }])
 }
 
+fn if_then(
+    branches: Vec<(py::Expression, Vec<py::Statement>)>,
+    else_branch: Option<Vec<py::Statement>>,
+) -> py::Statement {
+    py::Statement::Compound(_box(py::CompoundStatement::If(branches, else_branch)))
+}
+
 fn py_return(expression: py::Expression) -> py::Statement {
     py::Statement::Return(vec![expression])
 }
@@ -58,7 +65,7 @@ fn mcall(target: py::Expression, name: &str, arguments: Vec<py::Expression>) -> 
     )
 }
 
-fn fcall(target: py::Expression, arguments: Vec<py::Expression>) -> py::Expression {
+fn fcall_positional(target: py::Expression, arguments: Vec<py::Expression>) -> py::Expression {
     py::Expression::Call(
         _box(target),
         arguments
@@ -68,8 +75,24 @@ fn fcall(target: py::Expression, arguments: Vec<py::Expression>) -> py::Expressi
     )
 }
 
+fn fcall(target: py::Expression, arguments: Vec<py::Argument>) -> py::Expression {
+    py::Expression::Call(_box(target), arguments)
+}
+
+fn positional(arg: py::Expression) -> py::Argument {
+    py::Argument::Positional(arg)
+}
+
+fn starargs(arg: py::Expression) -> py::Argument {
+    py::Argument::Starargs(arg)
+}
+
 fn attribute(x: py::Expression, name: &str) -> py::Expression {
     py::Expression::Attribute(_box(x), name.to_string())
+}
+
+fn bop_is(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
+    py::Expression::Bop(py::Bop::Is, _box(lhs), _box(rhs))
 }
 
 fn bop_or(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
@@ -86,6 +109,24 @@ fn statement(ex: py::Expression) -> py::Statement {
 
 fn typed_args_list(names: Vec<String>) -> py::TypedArgsList {
     let args = names.iter().map(|n| (n.to_string(), None, None)).collect();
+    py::TypedArgsList {
+        args,
+        posonly_args: vec![],
+        star_args: py::StarParams::No,
+        keyword_args: vec![],
+        star_kwargs: None,
+    }
+}
+
+fn typed_args_list_defaults(
+    names: Vec<String>,
+    defaults: Vec<Option<py::Expression>>,
+) -> py::TypedArgsList {
+    let args = names
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.to_string(), None, defaults[i].clone()))
+        .collect();
     py::TypedArgsList {
         args,
         posonly_args: vec![],
@@ -135,6 +176,28 @@ fn funcdef(name: &str, params: Vec<String>, code: Vec<py::Statement>) -> py::Fun
     }
 }
 
+fn funcdef_defaults(
+    name: &str,
+    params: Vec<String>,
+    defaults: Vec<Option<py::Expression>>,
+    code: Vec<py::Statement>,
+) -> py::Funcdef {
+    let name = name.to_string();
+    let r#async = false;
+    let decorators = vec![];
+    let parameters = typed_args_list_defaults(params, defaults);
+    let return_type = None;
+
+    py::Funcdef {
+        r#async,
+        decorators,
+        name,
+        return_type,
+        code,
+        parameters,
+    }
+}
+
 fn funcdef_statement(f: py::Funcdef) -> py::Statement {
     py::Statement::Compound(_box(py::CompoundStatement::Funcdef(f)))
 }
@@ -157,7 +220,7 @@ fn hou_make_visible(target: py::Expression) -> py::Expression {
 }
 
 fn codegen_film(film: osk::Film) -> py::Statement {
-    statement(fcall(
+    statement(fcall_positional(
         name("osk_film"),
         vec![
             name(&film.picture.identifier),
@@ -217,7 +280,7 @@ fn iteration_networks(
                     iter_end_name(&picture.identifier, i),
                     iter_meta_name(&picture.identifier, i),
                 ]),
-                fcall(
+                fcall_positional(
                     name("iteration_network"),
                     vec![name("root"), string(&iter_name), iter_value],
                 ),
@@ -233,7 +296,7 @@ fn iteration_thunks(picture: &osk::Picture, xforms: &[osk::TransformSet]) -> Vec
     xforms.iter().enumerate().rev().for_each(|(j, t)| {
         let nth_identifier = name(&t.num_pics.nth_identifier);
         let value = if t.iteration {
-            fcall(
+            fcall_positional(
                 name("Thunk"),
                 vec![lambda(vec![], get_iteration_index(picture, j))],
             )
@@ -243,7 +306,7 @@ fn iteration_thunks(picture: &osk::Picture, xforms: &[osk::TransformSet]) -> Vec
         ret.push(assign(nth_identifier, value));
         let pct_identifier = name(&t.num_pics.pct_identifier);
         let value = if t.iteration {
-            fcall(
+            fcall_positional(
                 name("Thunk"),
                 vec![lambda(vec![], get_iteration_value(picture, j))],
             )
@@ -257,14 +320,14 @@ fn iteration_thunks(picture: &osk::Picture, xforms: &[osk::TransformSet]) -> Vec
 }
 
 fn get_iteration_value(picture: &osk::Picture, i: usize) -> py::Expression {
-    fcall(
+    fcall_positional(
         name("iteration_value"),
         vec![iter_meta_name(&picture.identifier, i)],
     )
 }
 
 fn get_iteration_index(picture: &osk::Picture, i: usize) -> py::Expression {
-    fcall(
+    fcall_positional(
         name("iteration_index"),
         vec![iter_meta_name(&picture.identifier, i)],
     )
@@ -283,7 +346,7 @@ fn env_func(
     };
     let mut body = vec![
         // time variables
-        assign(name("pt"), fcall(pt, vec![])),
+        assign(name("pt"), fcall_positional(pt, vec![])),
         assign(name("t"), name("pt")),
     ];
     for parameter in &picture.parameters {
@@ -293,8 +356,8 @@ fn env_func(
         body.push(assign(
             p,
             ternary(
-                fcall(_p.clone(), vec![]),
-                fcall(name("isinstance"), vec![_p.clone(), name("Thunk")]),
+                fcall_positional(_p.clone(), vec![]),
+                fcall_positional(name("isinstance"), vec![_p.clone(), name("Thunk")]),
                 _p,
             ),
         ))
@@ -340,7 +403,7 @@ fn time_func_and_thunk(stub: &py::Funcdef) -> Vec<py::Statement> {
 
     vec![
         funcdef_statement(time_func),
-        assign(name("t"), fcall(name("Thunk"), vec![name(&func_name)])),
+        assign(name("t"), fcall_positional(name("Thunk"), vec![name(&func_name)])),
     ]
 }
 
@@ -354,7 +417,7 @@ fn basis_value(picture: &osk::Picture, i: usize) -> py::Statement {
         .iter()
         .for_each(|p| basis_invocation_parameters.push(name(&p)));
     let basis_value = if i == 0 {
-        fcall(name(&picture.basis.identifier), basis_invocation_parameters)
+        fcall_positional(name(&picture.basis.identifier), basis_invocation_parameters)
     } else {
         out_name(&picture.identifier, i - 1)
     };
@@ -395,7 +458,7 @@ fn parm_set_expression(
     let hou_expr_language_python = attribute(attribute(name("hou"), "exprLanguage"), "Python");
     let parm_expr_string = bop_mod(
         string("%s()"),
-        fcall(name("export_function"), vec![name(&func_name)]),
+        fcall_positional(name("export_function"), vec![name(&func_name)]),
     );
     vec![
         func_def,
@@ -437,7 +500,7 @@ fn set_name(target: py::Expression, name_argument: &str) -> py::Expression {
     mcall(
         target,
         "setName",
-        vec![fcall(name("unique"), vec![string(name_argument)])],
+        vec![fcall_positional(name("unique"), vec![string(name_argument)])],
     )
 }
 
@@ -512,7 +575,7 @@ fn make_transform_node(
                 "python",
                 bop_mod(
                     string(&code),
-                    fcall(name("export_function"), vec![name(&func_name)]),
+                    fcall_positional(name("export_function"), vec![name(&func_name)]),
                 ),
             ));
             ret.push(statement(set_name(var, node_name)));
@@ -547,7 +610,7 @@ fn transform_set_nodes(
             } else {
                 xform_set_node_name(&picture.identifier, i, j - 1)
             };
-            ret.push(statement(fcall(
+            ret.push(statement(fcall_positional(
                 name("connect"),
                 vec![xform_set_node_name(&picture.identifier, i, j), in_node],
             )))
@@ -567,7 +630,7 @@ fn establish_out(
     };
     if xform.iteration {
         vec![
-            statement(fcall(
+            statement(fcall_positional(
                 name("connect"),
                 vec![iter_begin_name(&picture.identifier, i), out_node],
             )),
@@ -620,7 +683,7 @@ fn codegen_standard_picture_transforms(
                 _box(to_python_expression(&xform_set.num_pics.value)),
             ),
         ),
-        assign(name(&xform_name), fcall(name("Empty"), vec![name(&root)])),
+        assign(name(&xform_name), fcall_positional(name("Empty"), vec![name(&root)])),
         assign(
             attribute(name(&xform_name), "name"),
             string(&picture.identifier),
@@ -628,11 +691,11 @@ fn codegen_standard_picture_transforms(
     ];
     match xform_set.top_level_expression {
         Some(ref e) => loop_body.append(&mut e.statements.clone()),
-        None => {},
+        None => {}
     }
     for transform in &xform_set.transforms {
         loop_body.push(statement(match transform {
-            osk::Transform::Scale(x, y, z) => fcall(
+            osk::Transform::Scale(x, y, z) => fcall_positional(
                 name("osk_scale"),
                 vec![
                     name(&xform_name),
@@ -641,7 +704,7 @@ fn codegen_standard_picture_transforms(
                     to_python_expression(z),
                 ],
             ),
-            osk::Transform::Translate(x, y, z) => fcall(
+            osk::Transform::Translate(x, y, z) => fcall_positional(
                 name("osk_translate"),
                 vec![
                     name(&xform_name),
@@ -650,7 +713,7 @@ fn codegen_standard_picture_transforms(
                     to_python_expression(z),
                 ],
             ),
-            osk::Transform::Rotate(x, y, z) => fcall(
+            osk::Transform::Rotate(x, y, z) => fcall_positional(
                 name("osk_rotate"),
                 vec![
                     name(&xform_name),
@@ -675,7 +738,7 @@ fn codegen_standard_picture_transforms(
         for p in &picture.basis.parameters {
             basis_args.push(to_python_expression(p))
         }
-        loop_body.push(statement(fcall(
+        loop_body.push(statement(fcall_positional(
             name(&picture.basis.identifier),
             basis_args,
         )));
@@ -683,7 +746,7 @@ fn codegen_standard_picture_transforms(
 
     for_loop(
         name(&xform_set.num_pics.nth_identifier),
-        fcall(
+        fcall_positional(
             name("range"),
             vec![to_python_expression(&xform_set.num_pics.value)],
         ),
@@ -699,7 +762,7 @@ fn csg_invoke(invoke: &osk::Invoke, parameters: Vec<py::Expression>) -> py::Expr
             .map(|p| to_python_expression(p))
             .collect(),
     );
-    fcall(name(&invoke.identifier), parameters)
+    fcall_positional(name(&invoke.identifier), parameters)
 }
 
 fn codegen_standard_picture_csg(picture: &osk::Picture, csgs: &[osk::Csg]) -> Vec<py::Statement> {
@@ -731,7 +794,7 @@ fn codegen_standard_picture_csg(picture: &osk::Picture, csgs: &[osk::Csg]) -> Ve
         };
         ret.push(assign(
             var.clone(),
-            fcall(name("create_csg"), vec![name("root"), var, rhs, operation]),
+            fcall_positional(name("create_csg"), vec![name("root"), var, rhs, operation]),
         ));
     });
     ret.push(statement(mcall(name("root"), "layoutChildren", vec![])));
@@ -759,20 +822,56 @@ fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
     funcdef_statement(funcdef(&picture.identifier, funcdef_parameters, body))
 }
 
-fn codegen_picture_selection(picture_list: osk::PictureList) -> Vec<py::Statement> {
-    let body = vec![py_return(subscript(
-        list_literal(
+fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
+    let body = vec![if_then(
+        vec![(
+            bop_is(name("i"), py::Expression::None),
             picture_list
                 .invokes
                 .iter()
-                .map(|i| name(&i.identifier))
+                .map(|i| {
+                    let mut user_args: Vec<py::Expression> =
+                        i.parameters.iter().map(|p| name(&p)).collect();
+                    let mut args = vec![name("root"), name("pt")];
+                    args.append(&mut user_args);
+                    statement(fcall_positional(name(&i.identifier), args))
+                })
                 .collect(),
-        ),
-        name("i"),
-    ))];
-    vec![funcdef_statement(funcdef(
+        )],
+        Some(vec![
+            assign(
+                name("user_args"),
+                list_literal(
+                    picture_list
+                        .invokes
+                        .iter()
+                        .map(|i| list_literal(i.parameters.iter().map(|p| name(&p)).collect()))
+                        .collect(),
+                ),
+            ),
+            statement(fcall(
+                subscript(
+                    list_literal(
+                        picture_list
+                            .invokes
+                            .iter()
+                            .map(|i| name(&i.identifier))
+                            .collect(),
+                    ),
+                    name("i"),
+                ),
+                vec![
+                    positional(name("root")),
+                    positional(name("pt")),
+                    starargs(subscript(name("user_args"), name("i"))),
+                ],
+            )),
+        ]),
+    )];
+    vec![funcdef_statement(funcdef_defaults(
         &picture_list.identifier,
-        vec!["i".to_owned()],
+        vec!["root".to_owned(), "pt".to_owned(), "i".to_owned()],
+        vec![None, None, Some(py::Expression::None)],
         body,
     ))]
 }
@@ -786,7 +885,7 @@ pub fn codegen_toplevel(tl: osk::TopLevel) -> Vec<py::Statement> {
         osk::TopLevel::Definition(osk::Definition::Function(p)) => {
             vec![codegen_standard_picture(p)]
         }
-        osk::TopLevel::Definition(osk::Definition::Selection(p)) => codegen_picture_selection(p),
+        osk::TopLevel::Definition(osk::Definition::Selection(p)) => codegen_picture_list(p),
         osk::TopLevel::Skip => unreachable!(),
         osk::TopLevel::PythonCodeBlock(_) => unreachable!(),
     }
