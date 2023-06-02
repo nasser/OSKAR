@@ -5,8 +5,8 @@ authors = ["Ramsey Nasser <ram@nas.sr>"]
 edition = "2018"
 
 [dependencies]
-pest = "2.1.3"
-pest_derive = "2.1.0"
+pest = "2.6.0"
+pest_derive = "2.6.0"
 clap = "3.0.0-beta.2"
 
 [dependencies.python-parser]
