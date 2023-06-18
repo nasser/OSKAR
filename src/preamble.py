@@ -162,77 +162,24 @@ class Primitive(Node):
         super().unmount(root)
         bpy.data.objects.remove(self.ref)
 
-class PatchReplaceNode:
-    __slots__ = "old_node", "new_node"
-    def __init__(self, old_node, new_node):
-        self.old_node = old_node
-        self.new_node = new_node
-
-class PatchAddNode:
-    __slots__ = "node", "parent"
-    def __init__(self, node, parent):
-        self.node = node
-        self.parent = parent
-
-class PatchRemoveNode:
-    __slots__ = "node"
-    def __init__(self, node):
-        self.node = node
-
-class PatchUpdateValues:
-    __slots__ = "node", "values"
-    def __init__(self, node, values):
-        self.node = node
-        self.values = values
-
-class PatchCopyRef:
-    __slots__ = "from_node", "to_node"
-    def __init__(self, from_node, to_node):
-        self.from_node = from_node
-        self.to_node = to_node
-
-def diff(a, b, patch=[]):
-    if type(a) != type(b):
-        patch.append(PatchReplaceNode(a, b))
+def reconcile(old, new):
+    if type(old) != type(new):
+        root = old.parent.ref if old.parent is not None else None
+        old.unmount()
+        new.mount(root)
     else:
-        patch.append(PatchCopyRef(a, b))
-        if not a.values == b.values:
-            patch.append(PatchUpdateValues(a, b.values))
-        shortest_children = min(len(a.children), len(b.children))
+        new.ref = old.ref
+        if not old.values == new.values:
+            new.update(new.values)
+        shortest_children = min(len(old.children), len(new.children))
         for i in range(0, shortest_children):
-            a_child = a.children[i]
-            b_child = b.children[i]
-            diff(a_child, b_child, patch)
-        if len(a.children) > len(b.children):
-            for i in range(shortest_children, len(a.children)):
-                patch.append(PatchRemoveNode(a.children[i]))
+            reconcile(old.children[i], new.children[i])
+        if len(old.children) > len(new.children):
+            for i in range(shortest_children, len(old.children)):
+                old.children[i].unmount()
         else:
-            for i in range(shortest_children, len(b.children)):
-                patch.append(PatchAddNode(b.children[i], a))
-    return patch
-
-def apply(patch):
-    for op in patch:
-        match op:
-            case PatchReplaceNode():
-                root = op.old_node.parent.ref if op.old_node.parent is not None else None
-                op.old_node.unmount(root)
-                op.old_node.mount(root)
-
-            case PatchAddNode():
-                op.node.mount(op.parent.ref)
-                op.node.parent = op.parent
-
-            case PatchRemoveNode():
-                root = op.node.parent.ref if op.node.parent is not None else None
-                op.node.unmount(root)
-
-            case PatchUpdateValues():
-                op.node.values = op.values
-                op.node.update(op.values)
-                
-            case PatchCopyRef():
-                op.to_node.ref = op.from_node.ref
+            for i in range(shortest_children, len(new.children)):
+                new.children[i].mount(new.ref)
 
 class VirtualScene:
     __slots__ = "current"
@@ -241,7 +188,7 @@ class VirtualScene:
         node.mount(None)
     
     def update(self, node):
-        apply(diff(self.current, node))
+        reconcile(self.current, node)
         self.current = node
 
 def osk_initialize_scene():
