@@ -132,6 +132,7 @@ class Light(Node):
         bpy.context.collection.objects.link(self.ref)
 
 class Primitive(Node):
+    __slots__ = "function"
     def __init__(self, function, args=()):
         self.function = function
         super().__init__(args)
