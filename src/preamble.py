@@ -160,14 +160,16 @@ def reconcile(old, new):
         new.ref = old.ref
         if not old.values == new.values:
             new.update(new.values)
-        shortest_children = min(len(old.children), len(new.children))
+        old_children = len(old.children)
+        new_children = len(new.children)
+        shortest_children = min(old_children, new_children)
         for i in range(0, shortest_children):
             reconcile(old.children[i], new.children[i])
-        if len(old.children) > len(new.children):
-            for i in range(shortest_children, len(old.children)):
+        if old_children > new_children:
+            for i in range(shortest_children, old_children):
                 old.children[i].unmount()
         else:
-            for i in range(shortest_children, len(new.children)):
+            for i in range(shortest_children, new_children):
                 new.children[i].mount(new.ref)
 
 class VirtualScene:
