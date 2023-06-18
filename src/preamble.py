@@ -83,9 +83,6 @@ class Transform(Node):
         self.ref.scale = Vector(s)
 
 class Cube(Node):
-    def __init__(self):
-        super().__init__(None)
-    
     def mount(self, root):
         cube_data = bpy.data.meshes["Cube"]
         self.ref = bpy.data.objects.new("Cube", cube_data)
@@ -93,9 +90,6 @@ class Cube(Node):
         bpy.context.collection.objects.link(self.ref)
     
 class Square(Node):
-    def __init__(self):
-        super().__init__(None)
-    
     def mount(self, root):
         plane_data = bpy.data.meshes["Plane"]
         self.ref = bpy.data.objects.new("Square", plane_data)
@@ -103,9 +97,6 @@ class Square(Node):
         bpy.context.collection.objects.link(self.ref)
     
 class Cylinder(Node):
-    def __init__(self):
-        super().__init__(None)
-    
     def mount(self, root):
         plane_data = bpy.data.meshes["Cylinder"]
         self.ref = bpy.data.objects.new("Square", plane_data)
@@ -113,9 +104,6 @@ class Cylinder(Node):
         bpy.context.collection.objects.link(self.ref)
     
 class Sphere(Node):
-    def __init__(self):
-        super().__init__(None)
-    
     def mount(self, root):
         plane_data = bpy.data.meshes["Sphere"]
         self.ref = bpy.data.objects.new("Square", plane_data)
