@@ -42,7 +42,6 @@ class Node:
             child.mount(self.ref)
     
     def unmount(self):
-        # call in subclasses before subclass logic
         for child in self.children:
             child.unmount()
         bpy.data.objects.remove(self.ref)
@@ -52,7 +51,7 @@ class Node:
         child.parent = self
         return child
     
-    def update(self):
+    def update(self, _):
         pass
 
 class Transform(Node):
@@ -119,7 +118,7 @@ class Camera(Node):
         bpy.context.collection.objects.link(self.ref)
 
 class Light(Node):
-    def __init__(self, type='POINT', energy=1000):
+    def __init__(self, _pt, type='POINT', energy=1000):
         values = (type, energy)
         super().__init__(values)
     
