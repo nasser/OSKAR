@@ -1,0 +1,41 @@
+[tasks.linux]
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.windows]
+command = "cargo"
+args = ["build", "--target", "x86_64-pc-windows-gnu", "--release"]
+
+[tasks.all]
+dependencies = ["linux", "windows"]
+
+[tasks.version-bump]
+script = """
+new_tag=`git describe --tags --abbrev=0 | awk -F. '{OFS="."; $NF+=1; printf("%d.%04d", $1, $2)}'`
+git tag $new_tag
+"""
+
+[tasks.changelog]
+script = """
+echo -n "" > changes.txt
+most_recent_tag=`git describe --abbrev=0 --tags`
+commits=`git rev-list $most_recent_tag..HEAD`
+for commit in $commits
+do
+    message=`git log --pretty=format:"- %s (%as, %h)" -n 1 $commit`
+    if [[ $message != *chore* ]]; then
+        echo $message >> changes.txt
+    fi
+done
+"""
+
+[tasks.deliver]
+dependencies = ["changelog", "version-bump", "all"]
+script = """
+tag=`git describe --tags --abbrev=0`
+source="target/x86_64-pc-windows-gnu/release/oskar.exe"
+destination="/home/nasser/Dropbox/Oskar Project/Oskar/System04/$tag/"
+mkdir -p "$destination"
+cp "$source" "$destination"
+mv changes.txt "$destination"
+"""
