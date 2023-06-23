@@ -1,6 +1,6 @@
 [package]
 name = "oskar"
-version = "0.1.0"
+version = "4.0.0"
 authors = ["Ramsey Nasser <ram@nas.sr>"]
 edition = "2018"
 
