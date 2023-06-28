@@ -81,6 +81,64 @@ class Transform(Node):
         self.ref.rotation_euler = osk_radians(r)
         self.ref.scale = Vector(s)
 
+# class Ribbon(Node):
+#     def __init__(self, points):
+#         super().__init__(points)
+
+#     def update(self, values):
+#         t, r, s = values
+#         self.ref.location = Vector(t)
+#         self.ref.rotation_euler = osk_radians(r)
+#         self.ref.scale = Vector(s)
+
+#     def mount(self, root):
+#         curve_data = bpy.data.curves.new("Ribbon", 'CURVE')
+#         self.ref = bpy.data.objects.new("Ribbon", curve_data)
+#         self.ref.parent = root
+#         bpy.context.collection.objects.link(self.ref)
+
+class Line(Node):
+    def __init__(self, _pt, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
+        values = (points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution)
+        super().__init__(values)
+    
+    def mount(self, root):
+        points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
+        line_data = bpy.data.curves.new("Line", 'CURVE')
+        self.ref = bpy.data.objects.new("Line", line_data)
+        self.ref.parent = root
+        bpy.context.collection.objects.link(self.ref)
+
+        line_data.bevel_mode = 'ROUND'
+        line_data.dimensions = '3D'
+        line_data.use_fill_caps = True
+        line_data.bevel_resolution = bevel_resolution
+        line_data.bevel_depth = thickness
+        line_data.bevel_factor_start = start
+        line_data.bevel_factor_end = stop
+
+        spline = line_data.splines.new('NURBS')
+        spline.use_endpoint_u = True
+        spline.order_u = smoothness
+        spline.resolution_u = spline_resolution
+        spline.points.add(len(points))
+        for i in range(len(points)):
+            spline.points[i].co = Vector((*points[i], 1))
+    
+    def update(self, _values):
+        points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
+        line_data = self.ref.data
+        line_data.bevel_resolution = bevel_resolution
+        line_data.bevel_depth = thickness
+        line_data.bevel_factor_start = start
+        line_data.bevel_factor_end = stop
+        spline = line_data.splines[0]
+        spline.order_u = smoothness
+        spline.resolution_u = spline_resolution
+        for i in range(len(points)):
+            spline.points[i].co = Vector((*points[i], 1))
+
+
 class Cube(Node):
     def mount(self, root):
         cube_data = bpy.data.meshes["Cube"]
