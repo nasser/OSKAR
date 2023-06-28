@@ -255,10 +255,18 @@ def osk_initialize_scene():
     bpy.context.object.hide_render = True
     bpy.context.object.hide_viewport = True
 
+# https://blender.stackexchange.com/questions/30643/how-to-toggle-to-camera-view-via-python
+def osk_enable_camera_view():
+    for area in bpy.context.screen.areas:
+        if area.type == 'VIEW_3D':
+            area.spaces[0].region_3d.view_perspective = 'CAMERA'
+            break
+
 def osk_film(picture, frames):
     osk_initialize_scene()
 
     vscene = VirtualScene(picture(0))
+    osk_enable_camera_view()
 
     def frame_change(scene):
         t = (scene.frame_current % scene.frame_end) / scene.frame_end
