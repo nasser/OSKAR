@@ -2,7 +2,7 @@
 
 import bpy
 import math
-from mathutils import Vector, Euler
+from mathutils import Vector, Euler, Color
 import time
 
 def sin(x):
@@ -15,7 +15,9 @@ def osk_radians(xyz):
     return Euler((math.radians(xyz[0]), math.radians(xyz[1]), math.radians(xyz[2])))
 
 def osk_make_material(data):
-    r, g, b = data
+    h, s, v = data
+    color = Color()
+    color.hsv = (h, s, v)
     material = bpy.data.materials.new(name="Material")
     material.use_nodes = True
     if material.node_tree:
@@ -25,7 +27,7 @@ def osk_make_material(data):
     links = material.node_tree.links
     output = nodes.new(type='ShaderNodeOutputMaterial')
     shader = nodes.new(type='ShaderNodeBsdfDiffuse')
-    nodes["Diffuse BSDF"].inputs[0].default_value = (r/255, g/255, b/255, 1)
+    nodes["Diffuse BSDF"].inputs[0].default_value = (color.r, color.g, color.b, 1)
     links.new(shader.outputs[0], output.inputs[0])
     return material
 
@@ -99,9 +101,9 @@ class Transform(Node):
 #         bpy.context.collection.objects.link(self.ref)
 
 class Line(Node):
-    def __init__(self, _pt, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
+    def __init__(self, _pt, _material, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
         values = (points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution)
-        super().__init__(values)
+        super().__init__(_pt, _material, values)
     
     def mount(self, root):
         points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
@@ -141,13 +143,22 @@ class Line(Node):
 
 
 class Cube(Node):
+    def __init__(self, _pt, material):
+        super().__init__(material)
+
     def mount(self, root):
         cube_data = bpy.data.meshes["Cube"]
         self.ref = bpy.data.objects.new("Cube", cube_data)
-        self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
+        self.ref.parent = root
+        if self.values is not None:
+            self.ref.material_slots[self.ref.active_material_index].link = 'OBJECT'
+            self.ref.material_slots[self.ref.active_material_index].material = osk_make_material(self.values)
     
 class Square(Node):
+    def __init__(self, _pt, _material):
+        super().__init__()
+
     def mount(self, root):
         plane_data = bpy.data.meshes["Plane"]
         self.ref = bpy.data.objects.new("Square", plane_data)
@@ -155,6 +166,9 @@ class Square(Node):
         bpy.context.collection.objects.link(self.ref)
     
 class Cylinder(Node):
+    def __init__(self, _pt, _material):
+        super().__init__()
+
     def mount(self, root):
         plane_data = bpy.data.meshes["Cylinder"]
         self.ref = bpy.data.objects.new("Square", plane_data)
@@ -162,6 +176,9 @@ class Cylinder(Node):
         bpy.context.collection.objects.link(self.ref)
     
 class Sphere(Node):
+    def __init__(self, _pt, _material):
+        super().__init__()
+
     def mount(self, root):
         plane_data = bpy.data.meshes["Sphere"]
         self.ref = bpy.data.objects.new("Square", plane_data)
@@ -169,6 +186,9 @@ class Sphere(Node):
         bpy.context.collection.objects.link(self.ref)
     
 class Camera(Node):
+    def __init__(self, _pt, _material):
+        super().__init__()
+
     def mount(self, root):
         camera_data = bpy.data.cameras.new("Camera")
         self.ref = bpy.data.objects.new("Camera", camera_data)
@@ -177,14 +197,18 @@ class Camera(Node):
         bpy.context.collection.objects.link(self.ref)
 
 class Light(Node):
-    def __init__(self, _pt, type='POINT', energy=1000):
-        values = (type, energy)
+    def __init__(self, _pt, material, type='POINT', energy=1000):
+        values = (material, type, energy)
         super().__init__(values)
     
     def mount(self, root):
-        type, energy = self.values
+        material, type, energy = self.values
         light_data = bpy.data.lights.new("Light", type=type)
         light_data.energy = energy
+        h, s, v = material
+        color = Color()
+        color.hsv = (h, s, v)
+        light_data.color = color
         self.ref = bpy.data.objects.new("Light", light_data)
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
@@ -243,6 +267,8 @@ class VirtualScene:
 def osk_initialize_scene():
     for obj in bpy.context.collection.objects:
         bpy.data.objects.remove(obj, do_unlink=True)
+    for mat in bpy.data.materials:
+        bpy.data.materials.remove(mat, do_unlink=True)
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.object.hide_render = True
     bpy.context.object.hide_viewport = True

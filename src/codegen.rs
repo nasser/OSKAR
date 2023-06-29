@@ -237,7 +237,14 @@ fn codegen_standard_picture_transforms(
                 to_python_expression(y),
                 to_python_expression(z),
             ])),
-            osk::Transform::Color(r, g, b) => todo!(),
+            osk::Transform::Color(h, s, v) => loop_body.push(assign(
+                name("_material"),
+                tuple_literal(vec![
+                    to_python_expression(h),
+                    to_python_expression(s),
+                    to_python_expression(v),
+                ]),
+            )),
         }
     }
 
@@ -265,7 +272,7 @@ fn codegen_standard_picture_transforms(
             i + 1,
         ))
     } else {
-        let mut basis_args = vec![name("t")];
+        let mut basis_args = vec![name("t"), name("_material")];
         for p in &picture.basis.parameters {
             basis_args.push(to_python_expression(p))
         }
@@ -290,7 +297,9 @@ fn codegen_standard_picture_transforms(
 }
 
 fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
-    let mut body = vec![assign(name("t"), name("pt"))];
+    let mut body = vec![
+        assign(name("t"), name("pt")),
+    ];
 
     body.push(assign(name("_root"), fcall_positional(name("Transform"), vec![string(&picture.identifier)])));
 
@@ -305,12 +314,14 @@ fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
 
     body.push(py::Statement::Return(vec![name("_root")]));
 
-    let mut funcdef_parameters = vec!["pt".to_owned()];
+    let mut parameters = vec!["pt".to_owned(), "_material".to_owned()];
+    let mut defaults = vec![None, Some(py::Expression::None)];
     for p in picture.parameters {
-        funcdef_parameters.push(p)
+        parameters.push(p);
+        defaults.push(None);
     }
 
-    funcdef_statement(funcdef(&picture.identifier, funcdef_parameters, body))
+    funcdef_statement(funcdef_defaults(&picture.identifier, parameters, defaults, body))
 }
 
 fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
@@ -322,7 +333,7 @@ fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
             .map(|i| {
                 let mut user_args: Vec<py::Expression> =
                     i.parameters.iter().map(|p| name(&p)).collect();
-                let mut args = vec![name("pt")];
+                let mut args = vec![name("pt"), name("_material")];
                 args.append(&mut user_args);
                 statement(fcall_positional(
                     attribute(name("_root"), "add_child"),
@@ -359,6 +370,7 @@ fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
                 ),
                 vec![
                     positional(name("pt")),
+                    positional(name("_material")),
                     starargs(subscript(name("user_args"), name("i"))),
                 ],
             )),
@@ -366,8 +378,8 @@ fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
     )];
     vec![funcdef_statement(funcdef_defaults(
         &picture_list.identifier,
-        vec!["pt".to_owned(), "i".to_owned()],
-        vec![None, Some(py::Expression::None)],
+        vec!["pt".to_owned(), "_material".to_owned(), "i".to_owned()],
+        vec![None, Some(py::Expression::None), Some(py::Expression::None)],
         body,
     ))]
 }
