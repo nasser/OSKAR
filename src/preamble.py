@@ -55,7 +55,7 @@ class Node:
         pass
 
 class Transform(Node):
-    def __init__(self, translate=[], rotate=[], scale=[]):
+    def __init__(self, name="Transform", translate=[], rotate=[], scale=[]):
         t = Vector()
         r = Vector()
         s = Vector((1,1,1))
@@ -65,18 +65,19 @@ class Transform(Node):
             r += Vector(v)
         for v in scale:
             s *= Vector(v)
-        values = (t, r, s)
+        values = (name, t, r, s)
         super().__init__(values)
     
     def mount(self, root):
-        self.ref = bpy.data.objects.new("Empty", None )
+        name, _t, _r, _s = self.values
+        self.ref = bpy.data.objects.new(name, None)
         self.ref.parent = root
         self.update(self.values)
         bpy.context.collection.objects.link(self.ref)
         super().mount(root)
     
     def update(self, values):
-        t, r, s = values
+        _name, t, r, s = values
         self.ref.location = Vector(t)
         self.ref.rotation_euler = osk_radians(r)
         self.ref.scale = Vector(s)

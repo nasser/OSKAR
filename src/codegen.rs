@@ -248,6 +248,7 @@ fn codegen_standard_picture_transforms(
             vec![fcall_positional(
                 name("Transform"),
                 vec![
+                    string(&picture.identifier),
                     list_literal(translates),
                     list_literal(rotates),
                     list_literal(scales),
@@ -291,7 +292,7 @@ fn codegen_standard_picture_transforms(
 fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
     let mut body = vec![assign(name("t"), name("pt"))];
 
-    body.push(assign(name("_root"), fcall(name("Transform"), vec![])));
+    body.push(assign(name("_root"), fcall_positional(name("Transform"), vec![string(&picture.identifier)])));
 
     let body_specific = match picture.operations {
         osk::Operations::TransformSet(ref xforms) => {
@@ -313,7 +314,7 @@ fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
 }
 
 fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
-    let mut then_body = vec![assign(name("_root"), fcall(name("Transform"), vec![]))];
+    let mut then_body = vec![assign(name("_root"), fcall_positional(name("Transform"), vec![string(&picture_list.identifier)]))];
     then_body.append(
         &mut picture_list
             .invokes
