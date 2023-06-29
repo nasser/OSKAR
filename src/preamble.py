@@ -141,50 +141,42 @@ class Line(Node):
         for i in range(len(points)):
             spline.points[i].co = Vector((*points[i], 1))
 
-
-class Cube(Node):
-    def __init__(self, _pt, material):
+class GeometricPrimitive(Node):
+    def __init__(self, type, material):
+        self.type = type
         super().__init__(material)
-
+    
     def mount(self, root):
-        cube_data = bpy.data.meshes["Cube"]
-        self.ref = bpy.data.objects.new("Cube", cube_data)
+        geo_data = bpy.data.meshes[self.type]
+        self.ref = bpy.data.objects.new(self.type, geo_data)
         bpy.context.collection.objects.link(self.ref)
         self.ref.parent = root
         if self.values is not None:
             self.ref.material_slots[self.ref.active_material_index].link = 'OBJECT'
             self.ref.material_slots[self.ref.active_material_index].material = osk_make_material(self.values)
     
-class Square(Node):
-    def __init__(self, _pt, _material):
-        super().__init__()
+    def update(self, values):
+        h, s, v = self.values
+        color = Color()
+        color.hsv = (h, s, v)
+        self.ref.material_slots[self.ref.active_material_index].material.node_tree.nodes["Diffuse BSDF"].inputs[0].default_value = (color.r, color.g, color.b, 1)
 
-    def mount(self, root):
-        plane_data = bpy.data.meshes["Plane"]
-        self.ref = bpy.data.objects.new("Square", plane_data)
-        self.ref.parent = root
-        bpy.context.collection.objects.link(self.ref)
-    
-class Cylinder(Node):
-    def __init__(self, _pt, _material):
-        super().__init__()
+class Cube(GeometricPrimitive):
+    def __init__(self, _pt, material):
+        super().__init__("Cube", material)
 
-    def mount(self, root):
-        plane_data = bpy.data.meshes["Cylinder"]
-        self.ref = bpy.data.objects.new("Square", plane_data)
-        self.ref.parent = root
-        bpy.context.collection.objects.link(self.ref)
-    
-class Sphere(Node):
-    def __init__(self, _pt, _material):
-        super().__init__()
+class Square(GeometricPrimitive):
+    def __init__(self, _pt, material):
+        super().__init__("Plane", material)
 
-    def mount(self, root):
-        plane_data = bpy.data.meshes["Sphere"]
-        self.ref = bpy.data.objects.new("Square", plane_data)
-        self.ref.parent = root
-        bpy.context.collection.objects.link(self.ref)
-    
+class Cylinder(GeometricPrimitive):
+    def __init__(self, _pt, material):
+        super().__init__("Cylinder", material)
+
+class Sphere(GeometricPrimitive):
+    def __init__(self, _pt, material):
+        super().__init__("Sphere", material)
+
 class Camera(Node):
     def __init__(self, _pt, _material):
         super().__init__()
@@ -264,8 +256,13 @@ class VirtualScene:
         reconcile(self.current, node)
         self.current = node
 
+def osk_initialize_material(object, material):
+    object.data.materials.append(material)
+    object.material_slots[object.active_material_index].link = 'OBJECT'
+
+
 def osk_initialize_scene():
-    for obj in bpy.context.collection.objects:
+    for obj in bpy.data.objects:
         bpy.data.objects.remove(obj, do_unlink=True)
     for mat in bpy.data.materials:
         bpy.data.materials.remove(mat, do_unlink=True)
@@ -281,6 +278,12 @@ def osk_initialize_scene():
     bpy.ops.mesh.primitive_uv_sphere_add()
     bpy.context.object.hide_render = True
     bpy.context.object.hide_viewport = True
+    
+    default_material = osk_make_material((0.5, 1, 1))
+    osk_initialize_material(bpy.data.objects['Cube'], default_material)
+    osk_initialize_material(bpy.data.objects['Plane'], default_material)
+    osk_initialize_material(bpy.data.objects['Cylinder'], default_material)
+    osk_initialize_material(bpy.data.objects['Sphere'], default_material)
 
 # https://blender.stackexchange.com/questions/30643/how-to-toggle-to-camera-view-via-python
 def osk_enable_camera_view():
