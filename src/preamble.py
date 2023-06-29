@@ -189,25 +189,25 @@ class Light(Node):
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
 
-class Primitive(Node):
-    __slots__ = "function"
-    def __init__(self, function, args=()):
-        self.function = function
-        super().__init__(args)
+# class Primitive(Node):
+#     __slots__ = "function"
+#     def __init__(self, function, args=()):
+#         self.function = function
+#         super().__init__(args)
     
-    def update(self, _):
-        root = self.ref.parent
-        self.unmount(root)
-        self.mount(root)
+#     def update(self, _):
+#         root = self.ref.parent
+#         self.unmount(root)
+#         self.mount(root)
     
-    def mount(self, root):
-        self.ref = self.function(*self.values)
-        self.ref.parent = root
-        super().mount(root)
+#     def mount(self, root):
+#         self.ref = self.function(*self.values)
+#         self.ref.parent = root
+#         super().mount(root)
     
-    def unmount(self, root):
-        super().unmount(root)
-        bpy.data.objects.remove(self.ref)
+#     def unmount(self, root):
+#         super().unmount(root)
+#         bpy.data.objects.remove(self.ref)
 
 def reconcile(old, new):
     if type(old) != type(new):
