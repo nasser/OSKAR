@@ -190,12 +190,13 @@ class Camera(Node):
 
 class Light(Node):
     def __init__(self, _pt, material, type='POINT', energy=1000):
-        values = (material, type, energy)
+        self.type = type
+        values = (material, energy)
         super().__init__(values)
     
     def mount(self, root):
-        material, type, energy = self.values
-        light_data = bpy.data.lights.new("Light", type=type)
+        material, energy = self.values
+        light_data = bpy.data.lights.new("Light", type=self.type)
         light_data.energy = energy
         h, s, v = material
         color = Color()
@@ -204,6 +205,14 @@ class Light(Node):
         self.ref = bpy.data.objects.new("Light", light_data)
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
+
+    def update(self, values):
+        material, energy = self.values
+        h, s, v = material
+        color = Color()
+        color.hsv = (h, s, v)
+        self.ref.data.color = color
+        self.ref.data.energy = energy
 
 # class Primitive(Node):
 #     __slots__ = "function"
