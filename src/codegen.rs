@@ -315,13 +315,11 @@ fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
     body.push(py::Statement::Return(vec![name("_root")]));
 
     let mut parameters = vec!["pt".to_owned(), "_material".to_owned()];
-    let mut defaults = vec![None, Some(py::Expression::None)];
     for p in picture.parameters {
         parameters.push(p);
-        defaults.push(None);
     }
 
-    funcdef_statement(funcdef_defaults(&picture.identifier, parameters, defaults, body))
+    funcdef_statement(funcdef(&picture.identifier, parameters, body))
 }
 
 fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
