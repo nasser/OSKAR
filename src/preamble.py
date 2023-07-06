@@ -16,7 +16,6 @@ def osk_radians(xyz):
     return Euler((math.radians(xyz[0]), math.radians(xyz[1]), math.radians(xyz[2])))
 
 def osk_set_visible(obj, state):
-    print("osk_set_visible", obj, state)
     obj.hide_set(not state)
     obj.hide_render = not state
 
