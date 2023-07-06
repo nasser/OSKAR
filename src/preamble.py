@@ -304,12 +304,12 @@ def osk_enable_camera_view():
 def osk_film(picture, frames):
     osk_initialize_scene()
 
-    vscene = VirtualScene(picture(0))
+    vscene = VirtualScene(picture(0, None))
     osk_enable_camera_view()
 
     def frame_change(scene):
         t = (scene.frame_current % scene.frame_end) / scene.frame_end
-        vscene.update(picture(t))
+        vscene.update(picture(t, None))
 
     bpy.app.handlers.frame_change_post.clear()    
     bpy.app.handlers.frame_change_post.append(frame_change)
