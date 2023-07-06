@@ -1,6 +1,7 @@
 ### OSKAR preamble
 
 import bpy
+import sys
 import math
 from mathutils import Vector, Euler, Color
 import time
@@ -13,6 +14,11 @@ def cos(x):
 
 def osk_radians(xyz):
     return Euler((math.radians(xyz[0]), math.radians(xyz[1]), math.radians(xyz[2])))
+
+def osk_set_visible(obj, state):
+    print("osk_set_visible", obj, state)
+    obj.hide_set(not state)
+    obj.hide_render = not state
 
 def osk_make_material(data):
     h, s, v = data
@@ -55,6 +61,10 @@ class Node:
     
     def update(self, _):
         pass
+
+def osk_razor_thin(vec):
+    x, y, z = vec
+    return abs(x) < sys.float_info.epsilon or abs(y) < sys.float_info.epsilon or abs(z) < sys.float_info.epsilon
 
 class Transform(Node):
     def __init__(self, name="Transform", translate=[], rotate=[], scale=[]):
@@ -101,9 +111,9 @@ class Transform(Node):
 #         bpy.context.collection.objects.link(self.ref)
 
 class Line(Node):
-    def __init__(self, _pt, _material, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
+    def __init__(self, _pt, _context, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
         values = (points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution)
-        super().__init__(_pt, _material, values)
+        super().__init__(_pt, values)
     
     def mount(self, root):
         points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
@@ -128,7 +138,7 @@ class Line(Node):
         for i in range(len(points)):
             spline.points[i].co = Vector((*points[i], 1))
     
-    def update(self, _values):
+    def update(self, _old_values):
         points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
         line_data = self.ref.data
         line_data.bevel_resolution = bevel_resolution
@@ -142,43 +152,48 @@ class Line(Node):
             spline.points[i].co = Vector((*points[i], 1))
 
 class GeometricPrimitive(Node):
-    def __init__(self, type, material):
+    def __init__(self, type, context):
         self.type = type
-        super().__init__(material)
+        super().__init__(context)
     
     def mount(self, root):
         geo_data = bpy.data.meshes[self.type]
         self.ref = bpy.data.objects.new(self.type, geo_data)
         bpy.context.collection.objects.link(self.ref)
         self.ref.parent = root
-        if self.values is not None:
+        material, visible = self.values
+        osk_set_visible(self.ref, visible)
+        if material is not None:
             self.ref.material_slots[self.ref.active_material_index].link = 'OBJECT'
-            self.ref.material_slots[self.ref.active_material_index].material = osk_make_material(self.values)
+            self.ref.material_slots[self.ref.active_material_index].material = osk_make_material(material)
     
-    def update(self, values):
-        h, s, v = self.values
-        color = Color()
-        color.hsv = (h, s, v)
-        self.ref.material_slots[self.ref.active_material_index].material.node_tree.nodes["Diffuse BSDF"].inputs[0].default_value = (color.r, color.g, color.b, 1)
+    def update(self, _old_values):
+        material, visible = self.values
+        if material is not None:
+            h, s, v = material
+            color = Color()
+            color.hsv = (h, s, v)
+            self.ref.material_slots[self.ref.active_material_index].material.node_tree.nodes["Diffuse BSDF"].inputs[0].default_value = (color.r, color.g, color.b, 1)
+        osk_set_visible(self.ref, visible)
 
 class Cube(GeometricPrimitive):
-    def __init__(self, _pt, material):
-        super().__init__("Cube", material)
+    def __init__(self, _pt, context):
+        super().__init__("Cube", context)
 
 class Square(GeometricPrimitive):
-    def __init__(self, _pt, material):
-        super().__init__("Plane", material)
+    def __init__(self, _pt, context):
+        super().__init__("Plane", context)
 
 class Cylinder(GeometricPrimitive):
-    def __init__(self, _pt, material):
-        super().__init__("Cylinder", material)
+    def __init__(self, _pt, context):
+        super().__init__("Cylinder", context)
 
 class Sphere(GeometricPrimitive):
-    def __init__(self, _pt, material):
-        super().__init__("Sphere", material)
+    def __init__(self, _pt, context):
+        super().__init__("Sphere", context)
 
 class Camera(Node):
-    def __init__(self, _pt, _material):
+    def __init__(self, _pt, _context):
         super().__init__()
 
     def mount(self, root):
@@ -189,7 +204,8 @@ class Camera(Node):
         bpy.context.collection.objects.link(self.ref)
 
 class Light(Node):
-    def __init__(self, _pt, material, type='POINT', energy=1000):
+    def __init__(self, _pt, context, type='POINT', energy=1000):
+        material, visible = context
         self.type = type
         values = (material, energy)
         super().__init__(values)
@@ -206,7 +222,7 @@ class Light(Node):
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
 
-    def update(self, values):
+    def update(self, _old_values):
         material, energy = self.values
         h, s, v = material
         color = Color()
@@ -242,7 +258,7 @@ def reconcile(old, new):
     else:
         new.ref = old.ref
         if not old.values == new.values:
-            new.update(new.values)
+            new.update(old.values)
         old_children = len(old.children)
         new_children = len(new.children)
         shortest_children = min(old_children, new_children)
@@ -302,14 +318,16 @@ def osk_enable_camera_view():
             break
 
 def osk_film(picture, frames):
+    # (material, visible)
+    root_context = (None, True)
     osk_initialize_scene()
 
-    vscene = VirtualScene(picture(0, None))
+    vscene = VirtualScene(picture(0, root_context))
     osk_enable_camera_view()
 
     def frame_change(scene):
         t = (scene.frame_current % scene.frame_end) / scene.frame_end
-        vscene.update(picture(t, None))
+        vscene.update(picture(t, root_context))
 
     bpy.app.handlers.frame_change_post.clear()    
     bpy.app.handlers.frame_change_post.append(frame_change)
