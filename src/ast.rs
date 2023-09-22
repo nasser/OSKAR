@@ -28,7 +28,7 @@ pub struct PictureList {
 #[derive(Debug)]
 pub struct Picture {
     pub identifier: String,
-    pub parameters: Vec<String>,
+    pub parameters: Vec<Parameter>,
     pub basis: Invoke,
     pub operations: Operations,
 }
@@ -84,7 +84,13 @@ pub struct Film {
 #[derive(Debug, Clone)]
 pub struct Invoke {
     pub identifier: String,
-    pub parameters: Vec<String>,
+    pub parameters: Vec<Parameter>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Parameter {
+    Simple(String),
+    KeyValue(String, String),
 }
 
 #[derive(Debug)]
@@ -114,13 +120,23 @@ pub fn to_python_statements(code: &str) -> Vec<py::Statement> {
     }
 }
 
-fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Vec<String> {
+fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Vec<Parameter> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::parameters => pairs
             .next()
             .unwrap()
             .into_inner()
-            .map(|p| p.as_str().to_string())
+            .map(|p| match p.as_rule() {
+                Rule::expression => Parameter::Simple(p.as_str().to_string()),
+                Rule::named_expression => {
+                    let mut kv = p.into_inner();
+                    Parameter::KeyValue(
+                        kv.next().unwrap().as_str().to_string(),
+                        kv.next().unwrap().as_str().to_string(),
+                    )
+                }
+                _ => unreachable!(),
+            })
             .collect(),
         _ => vec![],
     }

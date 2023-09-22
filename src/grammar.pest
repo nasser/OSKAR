@@ -44,7 +44,9 @@ csg_operation       = { csg_operator ~ csg_operand }
 csg_operand         = _{ identifier ~ parameters? }
 csg_operator        = { "+" | "-" | "n" | "&" }
 
-parameters          = { "(" ~ expression? ~ ("," ~ expression)* ~ ")" }
+parameters          = { "(" ~ parameter? ~ ("," ~ parameter)* ~ ")" }
+parameter           = _{ named_expression | expression }
+named_expression    = { identifier ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ expression }
 empty_paramaters    = _{ "(" ~ ")" }
 
 literal             = { number }

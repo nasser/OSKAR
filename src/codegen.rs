@@ -73,6 +73,10 @@ fn positional(arg: py::Expression) -> py::Argument {
     py::Argument::Positional(arg)
 }
 
+fn keyword(k: String, v: py::Expression) -> py::Argument {
+    py::Argument::Keyword(k, v)
+}
+
 fn starargs(arg: py::Expression) -> py::Argument {
     py::Argument::Starargs(arg)
 }
@@ -83,6 +87,9 @@ fn attribute(x: py::Expression, name: &str) -> py::Expression {
 
 fn bop_is(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
     py::Expression::Bop(py::Bop::Is, _box(lhs), _box(rhs))
+}
+fn bop_eq(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
+    py::Expression::Bop(py::Bop::Eq, _box(lhs), _box(rhs))
 }
 
 fn bop_and(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
@@ -315,12 +322,19 @@ fn codegen_standard_picture_transforms(
             picture,
             xform_sets,
             i + 1,
-            (material_name, visible_name, xform_name)
+            (material_name, visible_name, xform_name),
         ))
     } else {
-        let mut basis_args = vec![name("t"), context_name.clone()];
+        let mut basis_args = vec![positional(name("t")), positional(context_name.clone())];
         for p in &picture.basis.parameters {
-            basis_args.push(to_python_expression(p))
+            match p {
+                osk::Parameter::Simple(v) => {
+                    basis_args.push(positional(to_python_expression(v)))
+                }
+                osk::Parameter::KeyValue(k, v) => {
+                    basis_args.push(keyword(k.clone(), to_python_expression(v)))
+                }
+            }
         }
 
         loop_body.push(assign(
@@ -330,10 +344,7 @@ fn codegen_standard_picture_transforms(
 
         loop_body.push(statement(fcall_positional(
             attribute(xform_name, "add_child"),
-            vec![fcall_positional(
-                name(&picture.basis.identifier),
-                basis_args,
-            )],
+            vec![fcall(name(&picture.basis.identifier), basis_args)],
         )));
     }
 
@@ -381,67 +392,68 @@ fn codegen_standard_picture(picture: osk::Picture) -> py::Statement {
 
     let mut parameters = vec!["pt".to_owned(), "_context".to_owned()];
     for p in picture.parameters {
-        parameters.push(p);
+        match p {
+            osk::Parameter::Simple(v) => parameters.push(v),
+            osk::Parameter::KeyValue(k, v) => panic!(
+                "key-value syntax not allowed in picture definition `{}(..., {}={}, ...)`",
+                picture.identifier, k, v
+            ),
+        }
     }
 
     funcdef_statement(funcdef(&picture.identifier, parameters, body))
 }
 
 fn codegen_picture_list(picture_list: osk::PictureList) -> Vec<py::Statement> {
-    let mut then_body = vec![assign(
+    let children: Vec<py::Expression> = picture_list
+        .invokes
+        .iter()
+        .map(|i| {
+            let mut user_args: Vec<py::Argument> = i
+                .parameters
+                .iter()
+                .map(|p| match p {
+                    osk::Parameter::Simple(v) => positional(to_python_expression(v)),
+                    osk::Parameter::KeyValue(k, v) => {
+                        keyword(k.clone(), to_python_expression(v))
+                    }
+                })
+                .collect();
+            let mut args = vec![positional(name("pt")), positional(name("_context"))];
+            args.append(&mut user_args);
+            fcall(name(&i.identifier), args)
+        })
+        .collect();
+
+    let mut none_body = vec![assign(
         name("_root"),
         fcall_positional(name("Transform"), vec![string(&picture_list.identifier)]),
     )];
-    then_body.append(
-        &mut picture_list
-            .invokes
+    none_body.append(
+        &mut children
             .iter()
-            .map(|i| {
-                let mut user_args: Vec<py::Expression> =
-                    i.parameters.iter().map(|p| name(&p)).collect();
-                let mut args = vec![name("pt"), name("_context")];
-                args.append(&mut user_args);
+            .map(|child| {
                 statement(fcall_positional(
                     attribute(name("_root"), "add_child"),
-                    vec![fcall_positional(name(&i.identifier), args)],
+                    vec![child.clone()],
                 ))
             })
             .collect(),
     );
-    then_body.push(py_return(name("_root")));
+    none_body.push(py_return(name("_root")));
 
-    let body = vec![if_then(
-        vec![(bop_is(name("i"), py::Expression::None), then_body)],
-        Some(vec![
-            assign(
-                name("user_args"),
-                list_literal(
-                    picture_list
-                        .invokes
-                        .iter()
-                        .map(|i| list_literal(i.parameters.iter().map(|p| name(&p)).collect()))
-                        .collect(),
-                ),
-            ),
-            py_return(fcall(
-                subscript(
-                    list_literal(
-                        picture_list
-                            .invokes
-                            .iter()
-                            .map(|i| name(&i.identifier))
-                            .collect(),
-                    ),
-                    name("i"),
-                ),
-                vec![
-                    positional(name("pt")),
-                    positional(name("_context")),
-                    starargs(subscript(name("user_args"), name("i"))),
-                ],
-            )),
-        ]),
-    )];
+    let mut branches = vec![(bop_is(name("i"), py::Expression::None), none_body)];
+    let mut i = 0;
+    for child in children {
+        branches.push((
+            bop_eq(name("i"), py::Expression::Int(i)),
+            vec![py_return(child)],
+        ));
+        i = i + 1;
+    }
+
+    let body = vec![if_then(branches, None)];
+
     vec![funcdef_statement(funcdef_defaults(
         &picture_list.identifier,
         vec!["pt".to_owned(), "_context".to_owned(), "i".to_owned()],
