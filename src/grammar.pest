@@ -14,8 +14,9 @@ picture_definition  = { standard_picture | picture_function | picture_selection 
 
 standard_picture    = { identifier ~ empty_paramaters? ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)+ }
 basis_picture       = { identifier ~ parameters? }
-transform_set       = { "[" ~ num_pics ~ expression_parens? ~ transform* ~ "]" }
+transform_set       = { "[" ~ num_pics ~ transform_statements? ~ transform* ~ "]" }
 num_pics            = { "{" ~ num_pics_expression ~ (";" ~ num_pics_identifier)? ~ (";" ~ num_pics_identifier)? ~ "}" }
+transform_statements= { "{" ~ transform_statement* ~ "}" }
 num_pics_expression = { (!(";" | "{" | "}") ~ ANY)+ }
 num_pics_identifier = _{ identifier | blank_argument }
 transform           = _{ scale_transform | translate_transform | rotate_transform | color_transform }
@@ -23,6 +24,8 @@ scale_transform     = { "*" ~ transform_arguments }
 translate_transform = { "+" ~ transform_arguments }
 rotate_transform    = { "@" ~ transform_arguments }
 color_transform     = { "^" ~ transform_arguments }
+
+transform_statement = @{ (!("}" | ";" | NEWLINE) ~ ANY)+ }
 
 transform_arguments = _{ "(" ~ transform_argument ~ "," ~ transform_argument ~ "," ~ transform_argument ~ ")" }
 transform_argument  = _{ expression | blank_argument }

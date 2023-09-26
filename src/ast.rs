@@ -330,15 +330,16 @@ fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Result<Vec<Transform>, ParseEr
     Ok(transforms)
 }
 
-fn analyze_transform_expression(
+fn analyze_transform_statements(
     pairs: &mut Pairs<Rule>,
 ) -> Result<Option<PythonStatements>, ParseError> {
-    match pairs.peek() {
-        Some(x) if x.as_rule() == Rule::expression_parens => {
-            // this span includes the surrounding parentheses which we remove here
-            let code_with_parens = pairs.next().unwrap().as_span();
-            let code = code_with_parens.get(1..code_with_parens.as_str().len() - 1).unwrap();
-            let statements = to_python_statements(&vec![code])?;
+    match pairs.next() {
+        Some(x) if x.as_rule() == Rule::transform_statements => {
+            let mut statements = vec![];
+            for line in x.into_inner() {
+                statements.push(line.as_span());
+            }
+            let statements = to_python_statements(&statements)?;
             Ok(Some(statements))
         }
         _ => Ok(None),
@@ -347,7 +348,7 @@ fn analyze_transform_expression(
 
 fn analyze_transform_set(pairs: &mut Pairs<Rule>) -> Result<TransformSet, ParseError> {
     let num_pics = analyze_num_pics(&mut pairs.next().unwrap().into_inner())?;
-    let statements = analyze_transform_expression(pairs)?;
+    let statements = analyze_transform_statements(pairs)?;
     let transforms = analyze_transforms(pairs)?;
 
     Ok(TransformSet {
