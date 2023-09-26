@@ -78,6 +78,7 @@ fn compile(path: String) {
                             ast::TopLevel::PythonCodeBlock(_) => {
                                 output.push_str(&format!("{}", python))
                             }
+                            ast::TopLevel::Skip => {}
                             _ => {
                                 output.push_str(&format!("{}\n{}", comment_string(source), python))
                             }
