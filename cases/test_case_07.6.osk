@@ -5,7 +5,7 @@
 
 # define picture function
 
-Slabs(Basis) <<< Basis [ {1}
+Slabs(Basis) << Basis [ {1}
                             +( -.5, -.5, -.5)   # move to center
                             *( .03,  .1,  .1)     # scale to thin slab
                             @(   0,  45,   0)     # rotate around y axis
@@ -15,7 +15,7 @@ Slabs(Basis) <<< Basis [ {1}
               [ {4} +( -.5 + (i*1), 0,  0) ]  # moveX as function(iteration)
               [ {4} +(  0, -.5 + (i*1), 0) ]  # moveY as function(iteration)
 
-Pic_list <<< [ Cube, Cylinder, Sphere ]
+Pic_list << [ Cube, Cylinder, Sphere ]
  
 # call slabs function with argument, Cylinder; produces test_case_07.5a.png
 Scene << Slabs(Pic_list(1)) [ {1} ]
