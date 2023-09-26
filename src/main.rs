@@ -5,7 +5,7 @@ mod parser;
 use parser::parse_source;
 
 mod ast;
-use ast::{analyze_top_level, validate};
+use ast::analyze_top_level;
 
 mod codegen;
 
@@ -71,20 +71,20 @@ fn compile(path: String) {
 
             for pair in pairs {
                 let source = pair.as_str().trim_end();
-                match validate(analyze_top_level(pair)) {
+                match analyze_top_level(pair) {
                     Ok(ast) => {
                         let python = codegen::to_python_source(&ast);
                         match ast {
                             ast::TopLevel::PythonCodeBlock(_) => {
                                 output.push_str(&format!("{}", python))
                             }
-                            _ => output.push_str(&format!("{}\n{}", comment_string(source), python)),
+                            _ => {
+                                output.push_str(&format!("{}\n{}", comment_string(source), python))
+                            }
                         }
                     }
-                    Err(errors) => {
-                        for error in errors {
-                            println!("{}", error.with_path(&path));
-                        }
+                    Err(error) => {
+                        println!("{}", error.with_path(&path));
                         process::exit(1);
                     }
                 }

@@ -191,7 +191,7 @@ fn subscript(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
 fn codegen_film(film: &osk::Film) -> py::Statement {
     statement(fcall_positional(
         name("osk_film"),
-        vec![name(&film.picture.identifier), film.frames.clone().unwrap()],
+        vec![name(&film.picture.identifier), film.frames.clone()],
     ))
 }
 
@@ -221,7 +221,7 @@ fn codegen_standard_picture_transforms(
     let xform_name = fresh_name("xform");
     let context_name = fresh_name("context");
     let xform_set = &xform_sets[xform_sets.len() - 1 - i];
-    let num_pics_value = xform_set.num_pics.value.as_ref().unwrap();
+    let num_pics_value = &xform_set.num_pics.value;
     let mut loop_body = vec![
         // pct = nth / num_pics
         assign(
@@ -233,7 +233,7 @@ fn codegen_standard_picture_transforms(
             ),
         ),
     ];
-    if let Some(Ok(statements)) = &xform_set.statements {
+    if let Some(statements) = &xform_set.statements {
         loop_body.append(&mut statements.clone());
     }
 
@@ -249,11 +249,7 @@ fn codegen_standard_picture_transforms(
                 let scale_name = fresh_name("scale");
                 loop_body.push(assign(
                     scale_name.clone(),
-                    tuple_literal(vec![
-                        x.clone().unwrap(),
-                        y.clone().unwrap(),
-                        z.clone().unwrap(),
-                    ]),
+                    tuple_literal(vec![x.clone(), y.clone(), z.clone()]),
                 ));
                 loop_body.push(assign(
                     visible_name.clone(),
@@ -267,23 +263,15 @@ fn codegen_standard_picture_transforms(
                 ));
                 scales.push(scale_name)
             }
-            osk::Transform::Translate((x, y, z)) => translates.push(tuple_literal(vec![
-                x.clone().unwrap(),
-                y.clone().unwrap(),
-                z.clone().unwrap(),
-            ])),
-            osk::Transform::Rotate((x, y, z)) => rotates.push(tuple_literal(vec![
-                x.clone().unwrap(),
-                y.clone().unwrap(),
-                z.clone().unwrap(),
-            ])),
+            osk::Transform::Translate((x, y, z)) => {
+                translates.push(tuple_literal(vec![x.clone(), y.clone(), z.clone()]))
+            }
+            osk::Transform::Rotate((x, y, z)) => {
+                rotates.push(tuple_literal(vec![x.clone(), y.clone(), z.clone()]))
+            }
             osk::Transform::Color((h, s, v)) => loop_body.push(assign(
                 material_name.clone(),
-                tuple_literal(vec![
-                    h.clone().unwrap(),
-                    s.clone().unwrap(),
-                    v.clone().unwrap(),
-                ]),
+                tuple_literal(vec![h.clone(), s.clone(), v.clone()]),
             )),
         }
     }
@@ -315,10 +303,8 @@ fn codegen_standard_picture_transforms(
         let mut basis_args = vec![positional(name("t")), positional(context_name.clone())];
         for p in &picture.basis.parameters {
             match p {
-                osk::Parameter::Simple(v) => basis_args.push(positional(v.clone().unwrap())),
-                osk::Parameter::KeyValue(k, v) => {
-                    basis_args.push(keyword(k.clone(), v.clone().unwrap()))
-                }
+                osk::Parameter::Simple(v) => basis_args.push(positional(v.clone())),
+                osk::Parameter::KeyValue(k, v) => basis_args.push(keyword(k.clone(), v.clone())),
             }
         }
 
@@ -335,10 +321,7 @@ fn codegen_standard_picture_transforms(
 
     for_loop(
         name(&xform_set.num_pics.nth_identifier),
-        fcall_positional(
-            name("range"),
-            vec![xform_set.num_pics.value.clone().unwrap()],
-        ),
+        fcall_positional(name("range"), vec![xform_set.num_pics.value.clone()]),
         loop_body,
     )
 }
@@ -392,8 +375,8 @@ fn codegen_picture_list(picture_list: &osk::PictureList) -> Vec<py::Statement> {
                 .parameters
                 .iter()
                 .map(|p| match p {
-                    osk::Parameter::Simple(v) => positional(v.clone().unwrap()),
-                    osk::Parameter::KeyValue(k, v) => keyword(k.clone(), v.clone().unwrap()),
+                    osk::Parameter::Simple(v) => positional(v.clone()),
+                    osk::Parameter::KeyValue(k, v) => keyword(k.clone(), v.clone()),
                 })
                 .collect();
             let mut args = vec![positional(name("pt")), positional(name("_context"))];
@@ -449,7 +432,7 @@ pub fn codegen_toplevel(tl: &osk::TopLevel) -> Vec<py::Statement> {
             vec![codegen_standard_picture(p)]
         }
         osk::TopLevel::Definition(osk::Definition::Selection(p)) => codegen_picture_list(p),
-        osk::TopLevel::PythonCodeBlock(b) => b.lines.clone().unwrap(),
+        osk::TopLevel::PythonCodeBlock(b) => b.lines.clone(),
         osk::TopLevel::Skip => vec![],
     }
 }

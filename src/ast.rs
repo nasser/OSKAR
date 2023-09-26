@@ -4,10 +4,10 @@ use python_parser::ast as py;
 
 use crate::parser::Rule;
 
-type PythonParseError = pest::error::Error<()>;
+type ParseError = pest::error::Error<()>;
 
-type PythonExpression = Result<py::Expression, PythonParseError>;
-type PythonStatements = Result<Vec<py::Statement>, PythonParseError>;
+type PythonExpression = py::Expression;
+type PythonStatements = Vec<py::Statement>;
 
 #[derive(Debug)]
 pub enum TopLevel {
@@ -100,22 +100,7 @@ pub struct PythonCodeBlock {
     pub lines: PythonStatements,
 }
 
-fn panic_span(span: Span, message: &str) {
-    let (l, c) = span.start_pos().line_col();
-    let line = span.start_pos().line_of();
-    println!(
-        "  | \n{} | {}\n  | {}^---\n  = {} (#file#:{}:{})",
-        l,
-        line,
-        " ".repeat(c - 1),
-        message,
-        l,
-        c
-    );
-    panic!("analysis error")
-}
-
-fn new_error(span: &Span, message: &str) -> PythonParseError {
+fn error_from_span(span: &Span, message: &str) -> ParseError {
     pest::error::Error::new_from_span(
         pest::error::ErrorVariant::<()>::CustomError {
             message: message.to_owned(),
@@ -128,27 +113,27 @@ fn fake_span(code: &str) -> Span {
     Span::new(code, 0, code.len()).unwrap()
 }
 
-pub fn to_python_statements(codes: &Vec<Span>) -> PythonStatements {
+pub fn to_python_statements(codes: &Vec<Span>) -> Result<PythonStatements, ParseError> {
     let mut statements = vec![];
     for code in codes {
         match python_parser::file_input(python_parser::make_strspan(code.as_str())) {
             Ok((_, ref mut s)) => statements.append(s),
-            Err(_) => return Err(new_error(code, "python parse error")),
+            Err(_) => return Err(error_from_span(code, "python parse error")),
         }
     }
     Ok(statements)
 }
 
-pub fn to_python_expression(code: &Span) -> PythonExpression {
+pub fn to_python_expression(code: &Span) -> Result<PythonExpression, ParseError> {
     match to_python_statements(&vec![*code]) {
         Ok(s) if s.len() == 1 => match &s[0] {
             py::Statement::Assignment(lhs, _) if lhs.len() == 1 => Ok(lhs[0].clone()),
-            _ => Err(new_error(
+            _ => Err(error_from_span(
                 code,
                 "python expression parse error (expected py::Statement::Assignment)",
             )),
         },
-        Ok(s) => Err(new_error(
+        Ok(s) => Err(error_from_span(
             code,
             &format!("expected 1 expression, got {}", s.len()),
         )),
@@ -156,52 +141,62 @@ pub fn to_python_expression(code: &Span) -> PythonExpression {
     }
 }
 
-fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Vec<Parameter> {
+fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Vec<Parameter>, ParseError> {
     match pairs.peek() {
-        Some(x) if x.as_rule() == Rule::parameters => pairs
-            .next()
-            .unwrap()
-            .into_inner()
-            .map(|p| match p.as_rule() {
-                Rule::expression => Parameter::Simple(to_python_expression(&p.as_span())),
-                Rule::named_expression => {
-                    let mut kv = p.into_inner();
-                    Parameter::KeyValue(
-                        kv.next().unwrap().as_str().to_string(),
-                        to_python_expression(&kv.next().unwrap().as_span()),
-                    )
+        Some(x) if x.as_rule() == Rule::parameters => {
+            let param_pairs = pairs.next().unwrap().into_inner();
+            let mut params = vec![];
+            for p in param_pairs {
+                match p.as_rule() {
+                    Rule::expression => {
+                        params.push(Parameter::Simple(to_python_expression(&p.as_span())?))
+                    }
+                    Rule::named_expression => {
+                        let mut kv = p.into_inner();
+                        params.push(Parameter::KeyValue(
+                            kv.next().unwrap().as_str().to_string(),
+                            to_python_expression(&kv.next().unwrap().as_span())?,
+                        ));
+                    }
+                    _ => unreachable!(),
                 }
-                _ => unreachable!(),
-            })
-            .collect(),
-        _ => vec![],
+            }
+            Ok(params)
+        }
+        _ => Ok(vec![]),
     }
 }
 
-fn analyze_parameters_names(pairs: &mut Pairs<Rule>) -> Vec<String> {
+fn analyze_parameters_names(pairs: &mut Pairs<Rule>) -> Result<Vec<String>, ParseError> {
     match pairs.peek() {
-        Some(x) if x.as_rule() == Rule::parameters => pairs
-            .next()
-            .unwrap()
-            .into_inner()
-            .map(|p| match p.as_rule() {
-                Rule::expression => p.as_str().to_owned(),
-                Rule::named_expression => panic!(),
-                _ => unreachable!(),
-            })
-            .collect(),
-        _ => vec![],
+        Some(x) if x.as_rule() == Rule::parameters => {
+            let param_pairs = pairs.next().unwrap().into_inner();
+            let mut params = vec![];
+            for p in param_pairs {
+                match p.as_rule() {
+                    Rule::expression => params.push(p.as_str().to_owned()),
+                    Rule::named_expression => {
+                        return Err(error_from_span(
+                            &p.as_span(),
+                            "key-value pairs not supported here",
+                        ))
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Ok(params)
+        }
+        _ => Ok(vec![]),
     }
 }
 
-fn analyze_invoke(pairs: &mut Pairs<Rule>) -> Invoke {
-    // let mut inner = pairs.next().unwrap().into_inner();
+fn analyze_invoke(pairs: &mut Pairs<Rule>) -> Result<Invoke, ParseError> {
     let identifier = pairs.next().unwrap().as_str().to_string();
-    let parameters = analyze_parameters(pairs);
-    Invoke {
+    let parameters = analyze_parameters(pairs)?;
+    Ok(Invoke {
         identifier,
         parameters,
-    }
+    })
 }
 
 fn analyze_film_parameters<'a>(pairs: &mut Pairs<'a, Rule>) -> Vec<(String, Span<'a>)> {
@@ -220,15 +215,15 @@ fn analyze_film_parameters<'a>(pairs: &mut Pairs<'a, Rule>) -> Vec<(String, Span
     }
 }
 
-fn analyze_film(pairs: &mut Pairs<Rule>) -> Film {
+fn analyze_film(pairs: &mut Pairs<Rule>) -> Result<Film, ParseError> {
     let film_identifier = pairs.next().unwrap();
     if film_identifier.as_str() != "Film" {
-        panic_span(
-            film_identifier.as_span(),
+        return Err(error_from_span(
+            &film_identifier.as_span(),
             "Film name must be exactly 'Film'",
-        );
+        ));
     }
-    let picture = analyze_invoke(&mut pairs.next().unwrap().into_inner());
+    let picture = analyze_invoke(&mut pairs.next().unwrap().into_inner())?;
 
     let mut frames = fake_span("250");
     for (name, value) in analyze_film_parameters(pairs) {
@@ -238,25 +233,25 @@ fn analyze_film(pairs: &mut Pairs<Rule>) -> Film {
         }
     }
 
-    Film {
+    Ok(Film {
         picture,
-        frames: to_python_expression(&frames),
-    }
+        frames: to_python_expression(&frames)?,
+    })
 }
 
-fn analyze_python_code(pairs: &mut Pairs<Rule>) -> PythonCodeBlock {
+fn analyze_python_code(pairs: &mut Pairs<Rule>) -> Result<PythonCodeBlock, ParseError> {
     let mut lines = vec![];
     for pair in pairs {
         lines.push(pair.as_span());
     }
-    PythonCodeBlock {
-        lines: to_python_statements(&lines),
-    }
+    Ok(PythonCodeBlock {
+        lines: to_python_statements(&lines)?,
+    })
 }
 
-fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
+fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> Result<NumPics, ParseError> {
     let p = pairs.next().unwrap();
-    let value = to_python_expression(&p.as_span());
+    let value = to_python_expression(&p.as_span())?;
     let mut nth_identifier = "nth".to_string();
     let mut pct_identifier = "pct".to_string();
     match pairs.next() {
@@ -276,11 +271,11 @@ fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> NumPics {
         _ => (),
     };
 
-    NumPics {
+    Ok(NumPics {
         value,
         nth_identifier,
         pct_identifier,
-    }
+    })
 }
 
 fn analyze_transform_argument(pair: Pair<Rule>) -> Option<Span> {
@@ -300,7 +295,7 @@ fn analyze_transform_arguments<'a>(
     (x, y, z)
 }
 
-fn default(v: Option<Span>, default: &str) -> PythonExpression {
+fn default(v: Option<Span>, default: &str) -> Result<PythonExpression, ParseError> {
     let default_span = fake_span(default);
     to_python_expression(match v {
         None => &default_span,
@@ -308,106 +303,103 @@ fn default(v: Option<Span>, default: &str) -> PythonExpression {
     })
 }
 
-fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Vec<Transform> {
+fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Result<Vec<Transform>, ParseError> {
     let mut transforms: Vec<Transform> = vec![];
     for pair in pairs {
         let transform = match pair.as_rule() {
             Rule::translate_transform => {
                 let (x, y, z) = analyze_transform_arguments(&mut pair.into_inner());
-                Transform::Translate((default(x, "0"), default(y, "0"), default(z, "0")))
+                Transform::Translate((default(x, "0")?, default(y, "0")?, default(z, "0")?))
             }
             Rule::scale_transform => {
                 let (x, y, z) = analyze_transform_arguments(&mut pair.into_inner());
-                Transform::Scale((default(x, "1"), default(y, "1"), default(z, "1")))
+                Transform::Scale((default(x, "1")?, default(y, "1")?, default(z, "1")?))
             }
             Rule::rotate_transform => {
                 let (x, y, z) = analyze_transform_arguments(&mut pair.into_inner());
-                Transform::Rotate((default(x, "0"), default(y, "0"), default(z, "0")))
+                Transform::Rotate((default(x, "0")?, default(y, "0")?, default(z, "0")?))
             }
             Rule::color_transform => {
                 let (x, y, z) = analyze_transform_arguments(&mut pair.into_inner());
-                Transform::Color((default(x, "1"), default(y, "1"), default(z, "1")))
+                Transform::Color((default(x, "1")?, default(y, "1")?, default(z, "1")?))
             }
             _ => unreachable!(),
         };
         transforms.push(transform);
     }
-    transforms
+    Ok(transforms)
 }
 
-fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Option<PythonStatements> {
+fn analyze_transform_expression(
+    pairs: &mut Pairs<Rule>,
+) -> Result<Option<PythonStatements>, ParseError> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::expression_parens => {
             let code = pairs.next().unwrap().into_inner().next().unwrap().as_span();
-            let statements = to_python_statements(&vec![code]);
-            Some(statements)
+            let statements = to_python_statements(&vec![code])?;
+            Ok(Some(statements))
         }
-        _ => None,
+        _ => Ok(None),
     }
 }
 
-fn analyze_transform_set(pairs: &mut Pairs<Rule>) -> TransformSet {
-    let num_pics = analyze_num_pics(&mut pairs.next().unwrap().into_inner());
-    let top_level_expression = analyze_transform_expression(pairs);
-    let transforms = analyze_transforms(pairs);
-    // let iteration = match num_pics.value.parse::<i32>() {
-    //     Ok(n) => n > 1,
-    //     _ => true,
-    // };
+fn analyze_transform_set(pairs: &mut Pairs<Rule>) -> Result<TransformSet, ParseError> {
+    let num_pics = analyze_num_pics(&mut pairs.next().unwrap().into_inner())?;
+    let statements = analyze_transform_expression(pairs)?;
+    let transforms = analyze_transforms(pairs)?;
 
-    TransformSet {
+    Ok(TransformSet {
         num_pics,
-        statements: top_level_expression,
+        statements,
         transforms,
-        // iteration,
-    }
+    })
 }
 
-fn analyze_transform_sets(pairs: &mut Pairs<Rule>) -> Operations {
+fn analyze_transform_sets(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseError> {
     let mut operations: Vec<TransformSet> = vec![];
     for pair in pairs {
         if pair.as_rule() != Rule::transform_set {
-            panic_span(
-                pair.as_span(),
+            return Err(error_from_span(
+                &pair.as_span(),
                 "Cannot mix transform sets and CSG operations",
-            );
+            ));
         }
-        let transform_set = analyze_transform_set(&mut pair.into_inner());
+        let transform_set = analyze_transform_set(&mut pair.into_inner())?;
         operations.push(transform_set);
     }
 
-    Operations::TransformSet(operations)
+    Ok(Operations::TransformSet(operations))
 }
 
-fn analyze_csg_operation(pairs: &mut Pairs<Rule>) -> Csg {
-    match pairs.next().unwrap().as_str() {
-        "+" => Csg::Union(analyze_invoke(pairs)),
-        "-" => Csg::Difference(analyze_invoke(pairs)),
-        "n" => Csg::Intersection(analyze_invoke(pairs)),
-        "&" => Csg::Concatenation(analyze_invoke(pairs)),
+fn analyze_csg_operation(pairs: &mut Pairs<Rule>) -> Result<Csg, ParseError> {
+    Ok(match pairs.next().unwrap().as_str() {
+        "+" => Csg::Union(analyze_invoke(pairs)?),
+        "-" => Csg::Difference(analyze_invoke(pairs)?),
+        "n" => Csg::Intersection(analyze_invoke(pairs)?),
+        "&" => Csg::Concatenation(analyze_invoke(pairs)?),
         x => unreachable!("unsupported csg operator {:?}", x),
-    }
+    })
 }
 
-fn analyze_csg_operations(pairs: &mut Pairs<Rule>) -> Operations {
+fn analyze_csg_operations(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseError> {
     let mut operations: Vec<Csg> = vec![];
 
     for pair in pairs {
         if pair.as_rule() != Rule::csg_operation {
-            panic_span(
-                pair.as_span(),
+            return Err(error_from_span(
+                &pair.as_span(),
                 "Cannot mix transform sets and CSG operations",
-            );
+            ));
         }
 
-        let csg_operation = analyze_csg_operation(&mut pair.into_inner());
+        let csg_operation = analyze_csg_operation(&mut pair.into_inner())?;
         operations.push(csg_operation);
     }
 
-    Operations::Csg(operations)
+    Ok(Operations::Csg(operations))
 }
 
-fn analyze_operations(pairs: &mut Pairs<Rule>) -> Operations {
+fn analyze_operations(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseError> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::transform_set => analyze_transform_sets(pairs),
         Some(x) if x.as_rule() == Rule::csg_operation => analyze_csg_operations(pairs),
@@ -415,159 +407,63 @@ fn analyze_operations(pairs: &mut Pairs<Rule>) -> Operations {
     }
 }
 
-fn analyze_picture(pairs: &mut Pairs<Rule>) -> Picture {
+fn analyze_picture(pairs: &mut Pairs<Rule>) -> Result<Picture, ParseError> {
     let mut pairs = pairs;
     let identifier = pairs.next().unwrap().as_str().to_string();
-    let parameters = analyze_parameters_names(&mut pairs);
-    let basis = analyze_invoke(&mut pairs.next().unwrap().into_inner());
-    let operations = analyze_operations(&mut pairs);
+    let parameters = analyze_parameters_names(&mut pairs)?;
+    let basis = analyze_invoke(&mut pairs.next().unwrap().into_inner())?;
+    let operations = analyze_operations(&mut pairs)?;
 
-    Picture {
+    Ok(Picture {
         identifier,
         parameters,
         basis,
         operations,
-    }
+    })
 }
 
-fn analyze_picture_list(pairs: &mut Pairs<Rule>) -> PictureList {
+fn analyze_picture_list(pairs: &mut Pairs<Rule>) -> Result<PictureList, ParseError> {
     let identifier = pairs.next().unwrap().as_str().to_string();
 
     let mut invokes: Vec<Invoke> = vec![];
-    invokes.push(analyze_invoke(pairs));
+    invokes.push(analyze_invoke(pairs)?);
     while pairs.peek().is_some() {
-        invokes.push(analyze_invoke(pairs))
+        invokes.push(analyze_invoke(pairs)?)
     }
 
-    PictureList {
+    Ok(PictureList {
         identifier,
         invokes,
-    }
+    })
 }
 
-fn analyze_definition(pairs: &mut Pairs<Rule>) -> Definition {
-    match pairs.peek().unwrap().as_rule() {
+fn analyze_definition(pairs: &mut Pairs<Rule>) -> Result<Definition, ParseError> {
+    Ok(match pairs.peek().unwrap().as_rule() {
         Rule::standard_picture => {
-            Definition::Standard(analyze_picture(&mut pairs.next().unwrap().into_inner()))
+            Definition::Standard(analyze_picture(&mut pairs.next().unwrap().into_inner())?)
         }
         Rule::picture_function => {
-            Definition::Function(analyze_picture(&mut pairs.next().unwrap().into_inner()))
+            Definition::Function(analyze_picture(&mut pairs.next().unwrap().into_inner())?)
         }
         Rule::picture_selection => Definition::Selection(analyze_picture_list(
             &mut pairs.next().unwrap().into_inner(),
-        )),
+        )?),
         _ => unreachable!(),
-    }
+    })
 }
 
-pub fn analyze_top_level(pair: Pair<Rule>) -> TopLevel {
-    match pair.as_rule() {
-        Rule::film => TopLevel::Film(analyze_film(&mut pair.into_inner())),
-        Rule::python_code => TopLevel::PythonCodeBlock(analyze_python_code(&mut pair.into_inner())),
+pub fn analyze_top_level(pair: Pair<Rule>) -> Result<TopLevel, ParseError> {
+    Ok(match pair.as_rule() {
+        Rule::film => TopLevel::Film(analyze_film(&mut pair.into_inner())?),
+        Rule::python_code => {
+            TopLevel::PythonCodeBlock(analyze_python_code(&mut pair.into_inner())?)
+        }
         Rule::picture_definition => {
-            TopLevel::Definition(analyze_definition(&mut pair.into_inner()))
+            TopLevel::Definition(analyze_definition(&mut pair.into_inner())?)
         }
         Rule::EOI => TopLevel::Skip,
         _ => unreachable!(),
-    }
-}
-
-fn validate_invoke(invoke: &Invoke, python_errors: &mut Vec<PythonParseError>) {
-    for p in &invoke.parameters {
-        match p {
-            Parameter::Simple(Err(e)) => python_errors.push(e.clone()),
-            Parameter::KeyValue(_, Err(e)) => python_errors.push(e.clone()),
-            _ => {}
-        }
-    }
-}
-
-fn validate_python_code_block(block: &PythonCodeBlock, python_errors: &mut Vec<PythonParseError>) {
-    if let Err(e) = &block.lines {
-        python_errors.push(e.clone());
-    }
-}
-
-fn validate_film(film: &Film, python_errors: &mut Vec<PythonParseError>) {
-    validate_invoke(&film.picture, python_errors);
-    if let Err(e) = &film.frames {
-        python_errors.push(e.clone());
-    }
-}
-
-fn validate_triple(exs: &PythonExpressionTriple, python_errors: &mut Vec<PythonParseError>) {
-    let (x, y, z) = exs;
-    if let Err(e) = x {
-        python_errors.push(e.clone());
-    }
-    if let Err(e) = y {
-        python_errors.push(e.clone());
-    }
-    if let Err(e) = z {
-        python_errors.push(e.clone());
-    }
-}
-
-fn validate_picture(picture: &Picture, python_errors: &mut Vec<PythonParseError>) {
-    validate_invoke(&picture.basis, python_errors);
-    match &picture.operations {
-        Operations::TransformSet(xform_sets) => {
-            for x in xform_sets {
-                if let Err(e) = &x.num_pics.value {
-                    python_errors.push(e.clone());
-                }
-                if let Some(Err(e)) = &x.statements {
-                    python_errors.push(e.clone());
-                }
-                for t in &x.transforms {
-                    match t {
-                        Transform::Scale(xyz) => validate_triple(xyz, python_errors),
-                        Transform::Translate(xyz) => validate_triple(xyz, python_errors),
-                        Transform::Rotate(xyz) => validate_triple(xyz, python_errors),
-                        Transform::Color(hsl) => validate_triple(hsl, python_errors),
-                    }
-                }
-            }
-        }
-        Operations::Csg(csgs) => {
-            for csg in csgs {
-                match csg {
-                    Csg::Union(invoke) => validate_invoke(invoke, python_errors),
-                    Csg::Difference(invoke) => validate_invoke(invoke, python_errors),
-                    Csg::Intersection(invoke) => validate_invoke(invoke, python_errors),
-                    Csg::Concatenation(invoke) => validate_invoke(invoke, python_errors),
-                }
-            }
-        }
-    }
-}
-
-fn validate_picture_list(picture_list: &PictureList, python_errors: &mut Vec<PythonParseError>) {
-    for invoke in &picture_list.invokes {
-        validate_invoke(invoke, python_errors);
-    }
-}
-
-pub fn validate(ast: TopLevel) -> Result<TopLevel, Vec<PythonParseError>> {
-    let mut python_errors = vec![];
-    match &ast {
-        TopLevel::Film(film) => validate_film(film, &mut python_errors),
-        TopLevel::PythonCodeBlock(block) => validate_python_code_block(block, &mut python_errors),
-        TopLevel::Definition(definition) => match definition {
-            Definition::Standard(picture) => validate_picture(picture, &mut python_errors),
-            Definition::Function(picture) => validate_picture(picture, &mut python_errors),
-            Definition::Selection(picture_list) => {
-                validate_picture_list(picture_list, &mut python_errors)
-            }
-        },
-        TopLevel::Skip => {}
-    }
-
-    if python_errors.len() == 0 {
-        Ok(ast)
-    } else {
-        Err(python_errors)
-    }
+    })
 }
 
 #[cfg(test)]
