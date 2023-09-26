@@ -335,7 +335,9 @@ fn analyze_transform_expression(
 ) -> Result<Option<PythonStatements>, ParseError> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::expression_parens => {
-            let code = pairs.next().unwrap().into_inner().next().unwrap().as_span();
+            // this span includes the surrounding parentheses which we remove here
+            let code_with_parens = pairs.next().unwrap().as_span();
+            let code = code_with_parens.get(1..code_with_parens.as_str().len() - 1).unwrap();
             let statements = to_python_statements(&vec![code])?;
             Ok(Some(statements))
         }
