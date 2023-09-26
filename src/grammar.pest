@@ -30,7 +30,7 @@ blank_argument      = { WHITESPACE* }
 
 expression          = @{ (expression_simple | expression_parens | expression_brackets )+ }
 expression_simple   = @{ (!("," | "(" | ")" | "[" | "]") ~ ANY)+ }
-expression_parens   = @{ ("(" ~ WHITESPACE* ~ ("," | expression)* ~ WHITESPACE* ~ ")")+ }
+expression_parens   = ${ ("(" ~ WHITESPACE* ~ ("," | expression)* ~ WHITESPACE* ~ ")")+ }
 expression_brackets = @{ ("[" ~ WHITESPACE* ~ ("," | expression)* ~ WHITESPACE* ~ "]")+ }
 
 picture_function    = { identifier ~ parameters? ~ "<<" ~ basis_picture ~ transform_set* }

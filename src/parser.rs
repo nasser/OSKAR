@@ -1,36 +1,18 @@
 use pest::error::*;
 use pest::iterators::*;
 use pest::Parser;
-use std::process;
 
 #[derive(Parser, Debug)]
 #[grammar = "grammar.pest"]
 pub struct OskarParser;
 
-fn print_error(e: Error<Rule>, path: &str) {
-    eprintln!("ERROR in OSKAR syntax in file '{}'", path);
-    match e.line_col {
-        LineColLocation::Pos((l, c)) => eprintln!("{} ({}:{}:{})", e, path, l, c),
-        LineColLocation::Span((sl, sc), _) => eprintln!("{} ({}:{}:{})", e, path, sl, sc),
-    }
-    process::exit(1)
-}
-
-pub fn parse_source<'a>(source: &'a str, path: &str) -> Pairs<'a, Rule> {
-    let sp = OskarParser::parse(Rule::start, source);
-    match sp {
-        Ok(res) => res,
-        Err(e) => {
-            print_error(e, &path);
-            panic!("could not parse")
-        }
-    }
+pub fn parse_source<'a>(source: &'a str, path: &str) -> Result<Pairs<'a, Rule>, Error<Rule>> {
+    OskarParser::parse(Rule::start, source)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pest::error::*;
     use pest::Parser;
     use std::fs;
 
