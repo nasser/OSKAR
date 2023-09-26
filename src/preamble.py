@@ -12,6 +12,22 @@ def sin(x):
 def cos(x):
     return math.cos(math.radians(x))
 
+def lookat(camera, target):
+    camera_location = Vector(camera)
+    target_location = Vector(target)
+    
+    direction = target_location - camera_location
+    direction.normalize()
+    
+    up = Vector((0, 1, 0))
+    if abs(direction.dot(up)) > 0.99:
+        up = Vector((1, 0, 0))
+    
+    quat_rotation = direction.to_track_quat('-Z', 'Y')
+    euler_angles = quat_rotation.to_euler()
+
+    return (math.degrees(euler_angles.x), math.degrees(euler_angles.y), math.degrees(euler_angles.z))
+
 def osk_radians(xyz):
     return Euler((math.radians(xyz[0]), math.radians(xyz[1]), math.radians(xyz[2])))
 
