@@ -477,7 +477,10 @@ mod tests {
         match parse_source(&source, &path) {
             Ok(pairs) => {
                 for pair in pairs {
-                    analyze_top_level(pair);
+                    match analyze_top_level(pair) {
+                        Err(_) => panic!(),
+                        _ => {}
+                    }
                 }
             }
             Err(_) => panic!(),
