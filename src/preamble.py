@@ -193,15 +193,28 @@ class Sphere(GeometricPrimitive):
         super().__init__("Sphere", context)
 
 class Camera(Node):
-    def __init__(self, _pt, _context):
-        super().__init__()
+    def __init__(self, _pt, _context, type='PERSP', size=None):
+        self.type = type
+        values = size
+        super().__init__(size)
 
     def mount(self, root):
         camera_data = bpy.data.cameras.new("Camera")
         self.ref = bpy.data.objects.new("Camera", camera_data)
         self.ref.parent = root
+        camera_data.type = self.type
         bpy.context.scene.camera = self.ref
         bpy.context.collection.objects.link(self.ref)
+        self.update(None)
+    
+    def update(self, _old_values):
+        size = self.values
+        if size is not None:
+            if self.type == 'PERSP':
+                self.ref.data.lens = size
+            elif self.type == 'ORTHO':
+                self.ref.data.ortho_scale = size
+
 
 class Light(Node):
     def __init__(self, _pt, context, type='POINT', energy=1000):
