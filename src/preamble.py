@@ -14,7 +14,7 @@ def sin(x):
 def cos(x):
     return math.cos(math.radians(x))
 
-def lookat(camera, target):
+def look_at(camera, target):
     camera_location = Vector(camera)
     target_location = Vector(target)
     
