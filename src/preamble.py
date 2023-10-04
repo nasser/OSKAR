@@ -132,7 +132,7 @@ class Transform(Node):
 class Line(Node):
     def __init__(self, _pt, _context, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
         values = (points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution)
-        super().__init__(_pt, values)
+        super().__init__(values)
     
     def mount(self, root):
         points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
