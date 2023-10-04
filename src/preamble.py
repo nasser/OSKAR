@@ -1,6 +1,7 @@
 ### OSKAR preamble
 
 import bpy
+import bmesh
 import inspect
 import sys
 import math
@@ -208,6 +209,24 @@ class Cylinder(GeometricPrimitive):
 class Sphere(GeometricPrimitive):
     def __init__(self, _pt, context):
         super().__init__("Sphere", context)
+
+class Polygon(Node):
+    def __init__(self, _pt, _context, points):
+        super().__init__(points)
+    
+    def mount(self, root):
+        mesh = bpy.data.meshes.new(name="Polygon")
+        self.ref = bpy.data.objects.new("Polygon", mesh)
+        self.ref.parent = root
+        bpy.context.collection.objects.link(self.ref)
+        self.update()
+
+    def update(self, _old_values=None):
+        bm = bmesh.new()
+        bm.faces.new([bm.verts.new(pt) for pt in self.values])
+        bm.to_mesh(self.ref.data)
+        bm.free()
+
 
 class Camera(Node):
     def __init__(self, _pt, _context, type='PERSP', size=None):
