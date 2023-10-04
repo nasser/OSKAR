@@ -220,6 +220,7 @@ fn codegen_standard_picture_transforms(
     let visible_name = fresh_name("visible");
     let xform_name = fresh_name("xform");
     let context_name = fresh_name("context");
+    let basis_name = fresh_name("basis");
     let xform_set = &xform_sets[xform_sets.len() - 1 - i];
     let num_pics_value = &xform_set.num_pics.value;
     let mut loop_body = vec![
@@ -313,10 +314,27 @@ fn codegen_standard_picture_transforms(
             tuple_literal(vec![material_name.clone(), visible_name.clone()]),
         ));
 
-        loop_body.push(statement(fcall_positional(
-            attribute(xform_name, "add_child"),
-            vec![fcall(name(&picture.basis.identifier), basis_args)],
-        )));
+        loop_body.push(assign(basis_name.clone(), name(&picture.basis.identifier)));
+
+        let mut basis_args_custom_primitive = vec![positional(basis_name.clone())];
+        basis_args_custom_primitive.append(&mut basis_args.clone());
+
+        loop_body.push(if_then(
+            vec![(
+                fcall_positional(
+                    attribute(name("inspect"), "isclass"),
+                    vec![basis_name.clone()],
+                ),
+                vec![statement(fcall_positional(
+                    attribute(xform_name.clone(), "add_child"),
+                    vec![fcall(basis_name.clone(), basis_args)],
+                ))],
+            )],
+            Some(vec![statement(fcall_positional(
+                attribute(xform_name, "add_child"),
+                vec![fcall(name("Primitive"), basis_args_custom_primitive)],
+            ))]),
+        ));
     }
 
     for_loop(

@@ -1,6 +1,7 @@
 ### OSKAR preamble
 
 import bpy
+import inspect
 import sys
 import math
 from mathutils import Vector, Euler, Color
@@ -259,25 +260,21 @@ class Light(Node):
         self.ref.data.color = color
         self.ref.data.energy = energy
 
-# class Primitive(Node):
-#     __slots__ = "function"
-#     def __init__(self, function, args=()):
-#         self.function = function
-#         super().__init__(args)
+class Primitive(Node):
+    __slots__ = "function", "pt"
+    def __init__(self, function, pt, context, *args):
+        self.pt = pt
+        self.function = function
+        super().__init__(args)
     
-#     def update(self, _):
-#         root = self.ref.parent
-#         self.unmount(root)
-#         self.mount(root)
+    def update(self, _values):
+        root = self.ref.parent
+        self.unmount()
+        self.mount(root)
     
-#     def mount(self, root):
-#         self.ref = self.function(*self.values)
-#         self.ref.parent = root
-#         super().mount(root)
-    
-#     def unmount(self, root):
-#         super().unmount(root)
-#         bpy.data.objects.remove(self.ref)
+    def mount(self, root):
+        self.ref = self.function(self.pt, *self.values)
+        self.ref.parent = root
 
 def reconcile(old, new):
     if type(old) != type(new):
