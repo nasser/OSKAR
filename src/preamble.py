@@ -227,6 +227,40 @@ class Polygon(Node):
         bm.to_mesh(self.ref.data)
         bm.free()
 
+class Prism(Node):
+    def __init__(self, _pt, _context, points, depth=1):
+        values = (points, depth)
+        super().__init__(values)
+    
+    def mount(self, root):
+        mesh = bpy.data.meshes.new(name="Polygon")
+        self.ref = bpy.data.objects.new("Polygon", mesh)
+        self.ref.parent = root
+        bpy.context.collection.objects.link(self.ref)
+        self.update()
+
+    def update(self, _old_values=None):
+        points, depth = self.values
+        bm = bmesh.new()
+        base_points =[bm.verts.new(pt) for pt in points]
+        v10 = base_points[1].co - base_points[0].co
+        v20 = base_points[2].co - base_points[0].co
+        normal = v10.cross(v20)
+        normal.normalize()
+        extruded_points = [bm.verts.new(p.co + normal * depth) for p in base_points]
+        bm.faces.new(base_points)
+        bm.faces.new(extruded_points)
+        length = len(extruded_points)
+        for i in range(0, length):
+            a = base_points[(i+0)%length]
+            b = base_points[(i+1)%length]
+            c = extruded_points[(i+1)%length]
+            d = extruded_points[(i+0)%length]
+            bm.faces.new([a, b, c, d])
+
+        bm.to_mesh(self.ref.data)
+        bm.free()
+
 
 class Camera(Node):
     def __init__(self, _pt, _context, type='PERSP', size=None):
