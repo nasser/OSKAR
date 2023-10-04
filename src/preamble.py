@@ -55,6 +55,7 @@ def osk_make_material(data):
     return material
 
 class Node:
+    __slots__ = "ref", "values", "children", "parent"
     def __init__(self, values=None):
         self.ref = None
         self.values = values
@@ -66,6 +67,9 @@ class Node:
         for child in self.children:
             child.mount(self.ref)
     
+    def update(self, _):
+        pass
+
     def unmount(self):
         for child in self.children:
             child.unmount()
@@ -76,9 +80,6 @@ class Node:
         child.parent = self
         return child
     
-    def update(self, _):
-        pass
-
 def osk_razor_thin(vec):
     x, y, z = vec
     return abs(x) < sys.float_info.epsilon or abs(y) < sys.float_info.epsilon or abs(z) < sys.float_info.epsilon
@@ -281,7 +282,6 @@ class Prism(Node):
 class Camera(Node):
     def __init__(self, _pt, _context, type='PERSP', size=None):
         self.type = type
-        values = size
         super().__init__(size)
 
     def mount(self, root):
