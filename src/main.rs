@@ -15,6 +15,9 @@ use clap::Clap;
 
 use std::process;
 
+use std::iter::FromIterator;
+use normalize_line_endings::normalized;
+
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Ramsey Nasser <ram@nas.sr>")]
 struct Opts {
@@ -51,8 +54,9 @@ fn comment_string(s: &str) -> String {
 
 fn compile(path: String) {
     let source = fs::read_to_string(&path).expect("cannot read file");
+    let source_normalized = String::from_iter(normalized(source.chars()));
     let mut output = String::new();
-    match parse_source(&source, &path) {
+    match parse_source(&source_normalized, &path) {
         Err(e) => {
             println!("{}", e.with_path(&path));
             process::exit(1);
