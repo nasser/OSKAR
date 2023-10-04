@@ -331,11 +331,10 @@ class Light(Node):
         self.ref.data.energy = energy
 
 class Primitive(Node):
-    __slots__ = "function", "pt"
+    __slots__ = "function"
     def __init__(self, function, pt, context, *args):
-        self.pt = pt
         self.function = function
-        super().__init__(args)
+        super().__init__((pt, args))
     
     def update(self, _values):
         root = self.ref.parent
@@ -343,7 +342,8 @@ class Primitive(Node):
         self.mount(root)
     
     def mount(self, root):
-        self.ref = self.function(self.pt, *self.values)
+        pt, args = self.values
+        self.ref = self.function(pt, *args)
         self.ref.parent = root
 
 def reconcile(old, new):
