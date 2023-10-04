@@ -210,6 +210,22 @@ class Sphere(GeometricPrimitive):
     def __init__(self, _pt, context):
         super().__init__("Sphere", context)
 
+def disc(radius=1, angle=360, radius_inner=0, resolution=32):
+    points = []
+    step = angle / resolution
+    if angle != 360 and radius_inner == 0:
+        points.append((0, 0, 0))
+    for i in range(resolution+1):
+        x = cos(i * step) * radius
+        y = sin(i * step) * radius
+        points.append((x, y, 0))
+    if radius_inner != 0:
+        for i in reversed(range(resolution+1)):
+            x = cos(i * step) * radius_inner
+            y = sin(i * step) * radius_inner
+            points.append((x, y, 0))
+    return points
+
 class Polygon(Node):
     def __init__(self, _pt, _context, points):
         super().__init__(points)
