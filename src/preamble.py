@@ -113,21 +113,61 @@ class Transform(Node):
         self.ref.rotation_euler = osk_radians(r)
         self.ref.scale = Vector(s)
 
-# class Ribbon(Node):
-#     def __init__(self, points):
-#         super().__init__(points)
+def points_to_curve(points, spline_type="NURBS", smoothness=2, resolution=64, name="Curve", closed=False, data=None):
+    if data is None:
+        data = bpy.data.curves.new("Line", 'CURVE')
+        spline = data.splines.new(spline_type)
+    else:
+        spline = data.splines[0]
+    spline.use_endpoint_u = True
+    spline.use_cyclic_u = closed
+    spline.order_u = smoothness
+    spline.resolution_u = resolution
+    if spline.point_count_u < len(points):
+        spline.points.add(len(points) - spline.point_count_u)
+    for i in range(len(points)):
+        spline.points[i].co = Vector((*points[i], 1))
+    return data
 
-#     def update(self, values):
-#         t, r, s = values
-#         self.ref.location = Vector(t)
-#         self.ref.rotation_euler = osk_radians(r)
-#         self.ref.scale = Vector(s)
+class Ribbon(Node):
+    def __init__(self, _pt, _context, points=[], cross_section=[], start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
+        values = (points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution)
+        super().__init__(values)
+    
+    def mount(self, root):
+        points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
+        line_data = points_to_curve(points, "POLY", smoothness, spline_resolution)
+        self.ref = bpy.data.objects.new("Line", line_data)
+        self.ref.parent = root
+        bpy.context.collection.objects.link(self.ref)
 
-#     def mount(self, root):
-#         curve_data = bpy.data.curves.new("Ribbon", 'CURVE')
-#         self.ref = bpy.data.objects.new("Ribbon", curve_data)
-#         self.ref.parent = root
-#         bpy.context.collection.objects.link(self.ref)
+        cross_section_data = points_to_curve(cross_section, "NURBS", smoothness, spline_resolution, closed=True)
+        cross_section_object = bpy.data.objects.new("CrossSection", cross_section_data)
+        cross_section_object.hide_render = True
+        cross_section_object.hide_viewport = True
+        bpy.context.collection.objects.link(cross_section_object)
+
+        line_data.bevel_mode = 'OBJECT'
+        line_data.dimensions = '3D'
+        line_data.use_fill_caps = True
+        line_data.bevel_resolution = bevel_resolution
+        line_data.bevel_object = cross_section_object
+        line_data.bevel_factor_start = start
+        line_data.bevel_factor_end = stop
+
+    def update(self, old_values):
+        points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
+        old_points, old_cross_section, old_start, old_stop, old_smoothness, old_bevel_resolution, old_spline_resolution = old_values
+
+        if points != old_points:
+            points_to_curve(points, "POLY", smoothness, spline_resolution, data=self.ref.data)
+        
+        if cross_section != old_cross_section:
+            points_to_curve(cross_section, "NURBS", smoothness, spline_resolution, closed=True, data=self.ref.data.bevel_object.data)
+
+        self.ref.data.bevel_resolution = bevel_resolution
+        self.ref.data.bevel_factor_start = start
+        self.ref.data.bevel_factor_end = stop
 
 class Line(Node):
     def __init__(self, _pt, _context, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
