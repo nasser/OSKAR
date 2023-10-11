@@ -1,6 +1,7 @@
 use pest::iterators::*;
 use pest::*;
 use python_parser::ast as py;
+use regex::Regex;
 
 use crate::parser::Rule;
 
@@ -113,10 +114,17 @@ fn fake_span(code: &str) -> Span {
     Span::new(code, 0, code.len()).unwrap()
 }
 
+/// strip out trailing whitespace and comments that may have been picked up by
+/// our parser. trailing comments break the python parser for some reason...
+fn prepare_python_code(code:&str) -> String {
+    let re = Regex::new("#[^\\n]*(\\n|$)").unwrap();
+    re.replace_all(code.trim(), "").trim().to_string()
+}
+
 pub fn to_python_statements(codes: &Vec<Span>) -> Result<PythonStatements, ParseError> {
     let mut statements = vec![];
     for code in codes {
-        match python_parser::file_input(python_parser::make_strspan(code.as_str().trim())) {
+        match python_parser::file_input(python_parser::make_strspan(&prepare_python_code(code.as_str()))) {
             Ok((_, ref mut s)) => statements.append(s),
             Err(_) => return Err(error_from_span(code, "python parse error")),
         }
