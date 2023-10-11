@@ -116,7 +116,7 @@ fn fake_span(code: &str) -> Span {
 pub fn to_python_statements(codes: &Vec<Span>) -> Result<PythonStatements, ParseError> {
     let mut statements = vec![];
     for code in codes {
-        match python_parser::file_input(python_parser::make_strspan(code.as_str())) {
+        match python_parser::file_input(python_parser::make_strspan(code.as_str().trim())) {
             Ok((_, ref mut s)) => statements.append(s),
             Err(_) => return Err(error_from_span(code, "python parse error")),
         }
@@ -334,11 +334,9 @@ fn analyze_transform_expression(
     pairs: &mut Pairs<Rule>,
 ) -> Result<Option<PythonStatements>, ParseError> {
     match pairs.peek() {
-        Some(x) if x.as_rule() == Rule::expression_parens => {
-            // this span includes the surrounding parentheses which we remove here
-            let code_with_parens = pairs.next().unwrap().as_span();
-            let code = code_with_parens.get(1..code_with_parens.as_str().len() - 1).unwrap();
-            let statements = to_python_statements(&vec![code])?;
+        Some(x) if x.as_rule() == Rule::transform_expressions => {
+            let spans = pairs.next().unwrap().into_inner().map(|p| p.as_span()).collect::<Vec<Span>>();
+            let statements = to_python_statements(&spans)?;
             Ok(Some(statements))
         }
         _ => Ok(None),

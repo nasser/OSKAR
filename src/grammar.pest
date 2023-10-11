@@ -14,7 +14,8 @@ picture_definition  = { standard_picture | picture_function | picture_selection 
 
 standard_picture    = { identifier ~ empty_paramaters? ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)+ }
 basis_picture       = { identifier ~ parameters? }
-transform_set       = { "[" ~ num_pics ~ expression_parens? ~ transform* ~ "]" }
+transform_set       = { "[" ~ num_pics ~ transform_expressions? ~ transform* ~ "]" }
+transform_expressions = { "(" ~ expression+ ~ ") "}
 num_pics            = { "{" ~ num_pics_expression ~ (";" ~ num_pics_identifier)? ~ (";" ~ num_pics_identifier)? ~ "}" }
 num_pics_expression = { (!(";" | "{" | "}") ~ ANY)+ }
 num_pics_identifier = _{ identifier | blank_argument }
@@ -28,10 +29,33 @@ transform_arguments = _{ "(" ~ transform_argument ~ "," ~ transform_argument ~ "
 transform_argument  = _{ expression | blank_argument }
 blank_argument      = { WHITESPACE* }
 
-expression          = @{ (expression_simple | expression_parens | expression_brackets )+ }
-expression_simple   = @{ (!("," | "(" | ")" | "[" | "]") ~ ANY)+ }
-expression_parens   = @{ ("(" ~ WHITESPACE* ~ ("," | expression)* ~ WHITESPACE* ~ ")")+ }
-expression_brackets = @{ ("[" ~ WHITESPACE* ~ ("," | expression)* ~ WHITESPACE* ~ "]")+ }
+expression          = { (py_string | py_list | py_dictionary | py_call | py_unary | py_assign | py_binary | py_literal | py_identifier) ~ py_terminator? }
+py_terminator       = _{ ";" | "\n" }
+
+py_list             = _{ "[" ~ expression? ~ ("," ~ expression)* ~ "]"}
+py_dictionary       = _{ "{" ~ py_entry? ~ ("," ~ py_entry)* ~ "}"}
+py_entry            = _{ py_string ~ ":" ~ expression }
+
+py_string           = _{ py_string_single | py_string_double }
+py_string_single    = _{ "'" ~ (!"'" ~ ANY)* ~ "'" }
+py_string_double    = _{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+
+py_assign           = _{ identifier ~( "," ~ identifier)* ~ py_op_assign ~ expression }
+py_op_assign        = _{ "=" | "+=" | "-=" | "*=" | "@=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | "**=" | "//=" }
+
+py_term             = _{ py_string | py_call | py_literal | py_identifier }
+py_binary           = _{ py_term ~ (py_op_binary ~ expression)+ }
+py_op_binary        = _{ "+" | "-" | "*" | "/" | "//" | "%" | "@" }
+
+py_unary            = _{ py_op_unary ~ expression }
+py_op_unary         = _{ "+" | "-" | "~" }
+
+py_call             = _{ identifier ~ "(" ~ py_argument? ~ ( "," ~ py_argument )* ~ ")" }
+py_argument         = _{ py_named_argument | expression }
+py_named_argument   = _ { identifier ~ "=" ~ expression }
+
+py_literal          = _{ literal }
+py_identifier       = _{ identifier }
 
 picture_function    = { identifier ~ parameters? ~ "<<" ~ basis_picture ~ transform_set* }
 
@@ -51,7 +75,8 @@ empty_paramaters    = _{ "(" ~ ")" }
 
 literal             = { number }
 identifier          = @{ XID_START ~ XID_CONTINUE* }
-number              = { NUMBER+ } 
+number              = { fraction | NUMBER+ } 
+fraction            = _{ "." ~ NUMBER+ }
 
 WHITESPACE          = _{ " " | "\t" | NEWLINE }
 COMMENT             = _{ single_line_comment | multi_line_comment }
