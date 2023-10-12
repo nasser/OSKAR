@@ -156,7 +156,7 @@ fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Vec<Parameter>, ParseEr
             let mut params = vec![];
             for p in param_pairs {
                 match p.as_rule() {
-                    Rule::expression => {
+                    Rule::expression_simple => {
                         params.push(Parameter::Simple(to_python_expression(&p.as_span())?))
                     }
                     Rule::named_expression => {
@@ -182,7 +182,7 @@ fn analyze_parameters_names(pairs: &mut Pairs<Rule>) -> Result<Vec<String>, Pars
             let mut params = vec![];
             for p in param_pairs {
                 match p.as_rule() {
-                    Rule::expression => params.push(p.as_str().to_owned()),
+                    Rule::expression_simple => params.push(p.as_str().to_owned()),
                     Rule::named_expression => {
                         return Err(error_from_span(
                             &p.as_span(),
@@ -289,7 +289,7 @@ fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> Result<NumPics, ParseError> {
 fn analyze_transform_argument(pair: Pair<Rule>) -> Option<Span> {
     match pair.as_rule() {
         Rule::blank_argument => None,
-        Rule::expression => Some(pair.as_span()),
+        Rule::expression_simple => Some(pair.as_span()),
         _ => unreachable!(),
     }
 }
@@ -479,14 +479,17 @@ mod tests {
     use super::*;
     use crate::parser::parse_source;
     use std::fs;
+    use std::iter::FromIterator;
+    use normalize_line_endings::normalized;
 
     fn test_analyzes(path: &str) {
         let source = fs::read_to_string(&path).expect("cannot read file");
-        match parse_source(&source, &path) {
+        let source_normalized = String::from_iter(normalized(source.chars()));
+        match parse_source(&source_normalized, &path) {
             Ok(pairs) => {
                 for pair in pairs {
                     match analyze_top_level(pair) {
-                        Err(_) => panic!(),
+                        Err(e) => panic!("!!! {:?}", e),
                         _ => {}
                     }
                 }
