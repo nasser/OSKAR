@@ -15,8 +15,8 @@ use clap::Clap;
 
 use std::process;
 
-use std::iter::FromIterator;
 use normalize_line_endings::normalized;
+use std::iter::FromIterator;
 
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Ramsey Nasser <ram@nas.sr>")]
@@ -31,6 +31,8 @@ enum SubCommand {
     Compile(CompileOpts),
     /// Print the AST of a Python file (for debugging)
     Reverse(ReverseOpts),
+    /// Print the version of the compiler
+    Version,
 }
 
 #[derive(Clap)]
@@ -105,10 +107,21 @@ fn reverse(path: String) {
     codegen::print_python_ast(&source)
 }
 
+fn version() {
+    println!(
+        "OSKAR compiler {} ({}/{}, {})",
+        env!("GIT_TAG"),
+        env!("GIT_BRANCH"),
+        env!("GIT_HASH"),
+        env!("BUILD_DATE")
+    );
+}
+
 fn main() {
     let opts = Opts::parse();
     match opts.subcommand {
         SubCommand::Compile(c) => compile(c.file),
         SubCommand::Reverse(c) => reverse(c.file),
+        SubCommand::Version => version(),
     }
 }
