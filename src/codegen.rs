@@ -321,18 +321,15 @@ fn codegen_standard_picture_transforms(
 
         loop_body.push(if_then(
             vec![(
-                fcall_positional(
-                    attribute(name("inspect"), "isclass"),
-                    vec![basis_name.clone()],
-                ),
+                fcall_positional(name("osk_is_primitive"), vec![basis_name.clone()]),
                 vec![statement(fcall_positional(
                     attribute(xform_name.clone(), "add_child"),
-                    vec![fcall(basis_name.clone(), basis_args)],
+                    vec![fcall(name("Primitive"), basis_args_custom_primitive)],
                 ))],
             )],
             Some(vec![statement(fcall_positional(
                 attribute(xform_name, "add_child"),
-                vec![fcall(name("Primitive"), basis_args_custom_primitive)],
+                vec![fcall(basis_name, basis_args)],
             ))]),
         ));
     }

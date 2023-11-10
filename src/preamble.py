@@ -386,6 +386,15 @@ class Primitive(Node):
         self.ref = self.function(pt, *args)
         self.ref.parent = root
 
+osk_primitives = set()
+
+def osk_is_primitive(func):
+    return func.__name__ in osk_primitives
+
+def primitive(func):
+    osk_primitives.add(func.__name__)
+    return func
+
 def reconcile(old, new):
     if type(old) != type(new):
         root = old.parent.ref if old.parent is not None else None
