@@ -180,6 +180,7 @@ class Line(Node):
         self.ref = bpy.data.objects.new("Line", line_data)
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
+        osk_set_visible(self.ref, True)
 
         line_data.bevel_mode = 'ROUND'
         line_data.dimensions = '3D'
@@ -200,6 +201,7 @@ class Line(Node):
     def update(self, _old_values):
         points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
         line_data = self.ref.data
+        osk_set_visible(self.ref, True) # not clear why we have to do this
         line_data.bevel_resolution = bevel_resolution
         line_data.bevel_depth = thickness
         line_data.bevel_factor_start = start
