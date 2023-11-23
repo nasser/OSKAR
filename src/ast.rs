@@ -481,8 +481,24 @@ mod tests {
     use std::fs;
     use std::iter::FromIterator;
     use normalize_line_endings::normalized;
+    use test_case::test_case;
 
-    fn test_analyzes(path: &str) {
+    #[test_case("cases/test_case_01.osk"; "case 01")]
+    #[test_case("cases/test_case_02.osk"; "case 02")]
+    #[test_case("cases/test_case_03.osk"; "case 03")]
+    #[test_case("cases/test_case_04.1.osk"; "case 04.1")]
+    #[test_case("cases/test_case_04.2.osk"; "case 04.2")]
+    #[test_case("cases/test_case_04.3.osk"; "case 04.3")]
+    #[test_case("cases/test_case_04.5.osk"; "case 04.5")]
+    #[test_case("cases/test_case_04.6a.osk"; "case 04.6a")]
+    #[test_case("cases/test_case_04a.osk"; "case 04a")]
+    #[test_case("cases/test_case_07.5a.osk"; "case 07.5a")]
+    #[test_case("cases/test_case_07.5b.osk"; "case 07.5b")]
+    #[test_case("cases/test_case_07.5.osk"; "case 07.5")]
+    #[test_case("cases/test_case_07.6.osk"; "case 07.6")]
+    #[test_case("cases/test_case_07.osk"; "case 07")]
+    #[test_case("cases/test_case_09.osk"; "case 09")]
+    fn analysis(path: &str) {
         let source = fs::read_to_string(&path).expect("cannot read file");
         let source_normalized = String::from_iter(normalized(source.chars()));
         match parse_source(&source_normalized, &path) {
@@ -496,65 +512,5 @@ mod tests {
             }
             Err(_) => panic!(),
         }
-    }
-    #[test]
-    fn test_case_01() {
-        test_analyzes("cases/test_case_01.osk");
-    }
-    #[test]
-    fn test_case_02() {
-        test_analyzes("cases/test_case_02.osk");
-    }
-    #[test]
-    fn test_case_03() {
-        test_analyzes("cases/test_case_03.osk");
-    }
-    #[test]
-    fn test_case_04_1() {
-        test_analyzes("cases/test_case_04.1.osk");
-    }
-    #[test]
-    fn test_case_04_2() {
-        test_analyzes("cases/test_case_04.2.osk");
-    }
-    #[test]
-    fn test_case_04_3() {
-        test_analyzes("cases/test_case_04.3.osk");
-    }
-    #[test]
-    fn test_case_04_5() {
-        test_analyzes("cases/test_case_04.5.osk");
-    }
-    #[test]
-    fn test_case_04_6a() {
-        test_analyzes("cases/test_case_04.6a.osk");
-    }
-    #[test]
-    fn test_case_04a() {
-        test_analyzes("cases/test_case_04a.osk");
-    }
-    #[test]
-    fn test_case_07_5a() {
-        test_analyzes("cases/test_case_07.5a.osk");
-    }
-    #[test]
-    fn test_case_07_5b() {
-        test_analyzes("cases/test_case_07.5b.osk");
-    }
-    #[test]
-    fn test_case_07_5() {
-        test_analyzes("cases/test_case_07.5.osk");
-    }
-    #[test]
-    fn test_case_07_6() {
-        test_analyzes("cases/test_case_07.6.osk");
-    }
-    #[test]
-    fn test_case_07() {
-        test_analyzes("cases/test_case_07.osk");
-    }
-    #[test]
-    fn test_case_09() {
-        test_analyzes("cases/test_case_09.osk");
     }
 }
