@@ -17,6 +17,7 @@ use std::process;
 
 use normalize_line_endings::normalized;
 use std::iter::FromIterator;
+use regex::Regex;
 
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Ramsey Nasser <ram@nas.sr>")]
@@ -55,8 +56,10 @@ fn comment_string(s: &str) -> String {
 }
 
 fn compile(path: String) {
+    let comment_re = Regex::new(r"\s*#.*").unwrap();
     let source = fs::read_to_string(&path).expect("cannot read file");
-    let source_normalized = String::from_iter(normalized(source.chars()));
+    let source_no_comments = comment_re.replace_all(&source, "");
+    let source_normalized = String::from_iter(normalized(source_no_comments.chars()));
     let mut output = String::new();
     match parse_source(&source_normalized, &path) {
         Err(e) => {
