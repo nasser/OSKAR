@@ -1,13 +1,31 @@
 [tasks.linux]
 command = "cargo"
+env = { "PYO3_CROSS_PYTHON_VERSION" = "3.11" }
 args = ["build", "--release"]
 
 [tasks.windows]
 command = "cargo"
+env = { "PYO3_CROSS_PYTHON_VERSION" = "3.11" }
 args = ["build", "--target", "x86_64-pc-windows-gnu", "--release"]
 
 [tasks.all]
 dependencies = ["linux", "windows"]
+
+# [tasks.render-test]
+# dependencies = ["linux"]
+# script = """
+# for file in render_cases/*; do
+#     ./target/release/oskar compile $file > $file.out.py
+#     mkdir $file.out-frames
+#     blender -b -E BLENDER_WORKBENCH -P $file.out.py -o $file.out-frames/frame -F JPEG -x 1 -a
+#     ffmpeg -r 60 -i $file.out-frames/frame%04d.jpg -vcodec libx264 -crf 25 -pix_fmt yuv420p $file.mp4
+#     rm -fr $file.out-frames
+#     rm $file.out.py
+# done
+# version=`git describe --tags --abbrev=0`
+# mkdir -p render_out/$version/
+# mv render_cases/*.mp4 render_out/$version/
+# """
 
 [tasks.version-bump]
 script = """

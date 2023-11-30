@@ -21,4 +21,4 @@ default-features = false
 
 [dependencies.pyo3]
 version = "0.20.0"
-features = ["auto-initialize"]
+features = ["auto-initialize", "generate-import-lib"]
