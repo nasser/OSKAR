@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate pest_derive;
 
+#[macro_use]
+extern crate lazy_static;
+
 mod parser;
 use parser::parse_source;
 
@@ -16,8 +19,10 @@ use clap::Clap;
 use std::process;
 
 use normalize_line_endings::normalized;
-use std::iter::FromIterator;
 use regex::Regex;
+use std::iter::FromIterator;
+
+mod py_codegen;
 
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Ramsey Nasser <ram@nas.sr>")]
@@ -34,6 +39,7 @@ enum SubCommand {
     Reverse(ReverseOpts),
     /// Print the version of the compiler
     Version,
+    PythonTest,
 }
 
 #[derive(Clap)]
@@ -126,5 +132,87 @@ fn main() {
         SubCommand::Compile(c) => compile(c.file),
         SubCommand::Reverse(c) => reverse(c.file),
         SubCommand::Version => version(),
+        SubCommand::PythonTest => python_test(),
     }
+}
+
+use pyo3::prelude::*;
+
+fn py_if<'a>(
+    ast: &'a PyAny,
+    test: &PyAny,
+    body: Vec<&PyAny>,
+    orelse: Vec<&PyAny>,
+) -> PyResult<&'a PyAny> {
+    ast.getattr("If").unwrap().call1((test, body, orelse))
+}
+
+fn py_expr<'a>(ast: &'a PyAny, expr: &PyAny) -> PyResult<&'a PyAny> {
+    ast.getattr("Expr").unwrap().call1((expr,))
+}
+
+fn py_name<'a>(ast: &'a PyAny, name: &str) -> PyResult<&'a PyAny> {
+    ast.getattr("Name").unwrap().call1((name,))
+}
+
+fn py_call<'a>(ast: &'a PyAny, func: &PyAny, args: Vec<&PyAny>) -> PyResult<&'a PyAny> {
+    ast.getattr("Call")
+        .unwrap()
+        .call1((func, args, Vec::<&PyAny>::new()))
+}
+
+fn py_constant<'a>(ast: &'a PyAny, value: &PyAny) -> PyResult<&'a PyAny> {
+    ast.getattr("Constant").unwrap().call1((value,))
+}
+
+fn python_test() {
+    let good_code = "
+def test_good_parse(x):
+    if x > 10:
+        return (x + 2)
+    else:
+        return jj
+    ";
+
+    let bad_code = "
+def test_bad_parse(x):
+    if x > 10:
+        return (x + 2
+    else:
+        return jj
+    ";
+
+    println!("# test python version");
+    
+    Python::with_gil(|py| {
+        let sys = py.import("sys").unwrap();
+        let ast = py.import("ast").unwrap();
+        let unparse = ast.getattr("unparse").unwrap();
+
+        let version: String = sys.getattr("version").unwrap().extract().unwrap();
+        let path: Vec<String> = sys.getattr("path").unwrap().extract().unwrap();
+        println!("Python Version {}", version);
+        println!("Python Path {:?}", path);
+        println!("AST Module {}", ast);
+    });
+
+    println!("# test parsing");
+
+    match py_codegen::parse(good_code) {
+        Ok(ast) => println!("{}\nok", py_codegen::unparse(&ast)),
+        Err(e) => {
+            println!("{}\nerror {:?}", good_code, e);
+        },
+    };
+
+    match py_codegen::parse(bad_code) {
+        Ok(ast) => println!("{}\nok", py_codegen::unparse(&ast)),
+        Err(e) => {
+            println!("{}\nerror {:?}", bad_code, e);
+        },
+    };
+
+    println!("# test codegen");
+
+    py_codegen::test_macros();    
 }
