@@ -1,220 +1,211 @@
 use crate::ast as osk;
-use python_parser::ast as py;
-use python_parser::visitors::printer::format_module;
+use crate::python as py;
+use pyo3::prelude::*;
 
-fn _box<T>(t: T) -> Box<T> {
-    Box::new(t)
+// https://docs.python.org/3/library/ast.html
+#[macro_export]
+macro_rules! ast {
+    ($name:ident) => {
+        Python::with_gil(|py| $crate::python::AST_MODULE.getattr(py, stringify!($name)).unwrap().call0(py)).unwrap()
+    };
+    ($name:ident, $ex:expr) => {
+        Python::with_gil(|py| $crate::python::AST_MODULE.getattr(py, stringify!($name)).unwrap().call1(py, ($ex,))).unwrap()
+    };
+    ($name:ident, $($ex:expr),+) => {
+        Python::with_gil(|py| $crate::python::AST_MODULE.getattr(py, stringify!($name)).unwrap().call1(py, ($($ex),+))).unwrap()
+    };
 }
 
-fn assign(lhs: py::Expression, rhs: py::Expression) -> py::Statement {
-    py::Statement::Assignment(vec![lhs], vec![vec![rhs]])
+macro_rules! empty_list {
+    () => {
+        Vec::<i32>::new()
+    };
 }
 
-fn assign_multiple(lhs: Vec<py::Expression>, rhs: py::Expression) -> py::Statement {
-    py::Statement::Assignment(lhs, vec![vec![rhs]])
+macro_rules! module {
+    ($body:expr) => {
+        ast!(Module, $body, empty_list!())
+    };
 }
 
-fn py_return(e: py::Expression) -> py::Statement {
-    py::Statement::Return(vec![e])
+macro_rules! constant {
+    ($v:expr) => {
+        ast!(Constant, $v)
+    };
+    ($v:literal) => {
+        ast!(Constant, $v)
+    };
 }
 
-fn name(s: &str) -> py::Expression {
-    py::Expression::Name(s.to_string())
+macro_rules! ret {
+    ($v:expr) => {
+        ast!(Return, $v)
+    };
+}
+
+macro_rules! raise {
+    ($e:expr) => {
+        ast!(Raise, $e)
+    };
+}
+
+macro_rules! name {
+    ($v:expr) => {
+        ast!(Name, $v)
+    };
+}
+
+macro_rules! compare {
+    ($op:ident, $lhs:expr, $rhs:expr) => {
+        ast!(Compare, $lhs, [ast!($op)], [$rhs])
+    };
+}
+
+macro_rules! if_stmt {
+    ($test:expr, $body:expr, $or_else:expr) => {
+        ast!(If, $test, $body, $or_else)
+    };
+}
+
+macro_rules! call {
+    ($target:expr) => {
+        ast!(Call, $target, empty_list!(), empty_list!())
+    };
+    ($target:expr, $positional:expr) => {
+        ast!(Call, $target, $positional, empty_list!())
+    };
+}
+
+macro_rules! call_kw {
+    ($target:expr, $positional:expr, $kw:expr) => {
+        ast!(Call, $target, $positional, $kw)
+    };
+}
+
+macro_rules! unary_op {
+    ($op:ident, $target:expr) => {
+        ast!(UnaryOp, ast!($op), $target)
+    };
+}
+
+macro_rules! bool_op {
+    ($op:ident, $left:expr, $right:expr) => {
+        ast!(BoolOp, ast!($op), [$left, $right])
+    };
+}
+
+macro_rules! bin_op {
+    ($op:ident, $left:expr, $right:expr) => {
+        ast!(BinOp, $left, ast!($op), $right)
+    };
+}
+
+macro_rules! keyword {
+    ($arg:expr, $value:expr) => {
+        ast!(keyword, $arg, $value)
+    };
+}
+
+macro_rules! arg {
+    ($name:expr) => {
+        ast!(arg, $name)
+    };
+}
+
+macro_rules! args {
+    ($args:expr) => {
+        ast!(
+            arguments,
+            empty_list!(), // posonlyargs
+            $args,         // args
+            empty_list!(), // vararg
+            empty_list!(), // kwonlyargs
+            empty_list!(), // kw_defaults
+            empty_list!(), // kwarg
+            empty_list!()  // defaults
+        )
+    };
+}
+
+macro_rules! args_defaults {
+    ($args:expr, $defaults:expr) => {
+        ast!(
+            arguments,
+            empty_list!(), // posonlyargs
+            $args,         // args
+            empty_list!(), // vararg
+            empty_list!(), // kwonlyargs
+            empty_list!(), // kw_defaults
+            empty_list!(), // kwarg
+            $defaults      // defaults
+        )
+    };
+}
+
+macro_rules! funcdef {
+    ($name:expr, $args:expr, $body:expr) => {
+        ast!(FunctionDef, $name, $args, $body, empty_list!())
+    };
+}
+
+macro_rules! assign {
+    ($target:expr, $value:expr) => {
+        $crate::ast!(Assign, $target, $value)
+    };
+}
+
+macro_rules! list {
+    ($elts:expr) => {
+        $crate::ast!(List, $elts)
+    };
+}
+
+macro_rules! tuple {
+    ($elts:expr) => {
+        $crate::ast!(Tuple, $elts)
+    };
+}
+
+macro_rules! attribute {
+    ($value:expr, $attr:literal) => {
+        ast!(Attribute, $value, $attr)
+    };
+}
+
+macro_rules! for_loop {
+    ($target:expr, $iter:expr, $body:expr) => {
+        ast!(For, $target, $iter, $body, empty_list!())
+    };
+}
+
+macro_rules! expr {
+    ($e:expr) => {
+        ast!(Expr, $e)
+    };
 }
 
 static mut _IDENTIFIER_ID: u32 = 0;
 
-fn fresh_name(s: &str) -> py::Expression {
+fn fresh_name(s: &str) -> py::AST {
     unsafe {
         _IDENTIFIER_ID += 1;
-        name(&format!("{}_{}", s, _IDENTIFIER_ID))
+        name!(format!("{}_{}", s, _IDENTIFIER_ID))
     }
 }
 
-fn string(s: &str) -> py::Expression {
-    py::Expression::String(vec![py::PyString {
-        prefix: "".to_string(),
-        content: s.to_string(),
-    }])
-}
-
-fn if_then(
-    branches: Vec<(py::Expression, Vec<py::Statement>)>,
-    else_branch: Option<Vec<py::Statement>>,
-) -> py::Statement {
-    py::Statement::Compound(_box(py::CompoundStatement::If(branches, else_branch)))
-}
-
-fn fcall_positional(target: py::Expression, arguments: Vec<py::Expression>) -> py::Expression {
-    py::Expression::Call(
-        _box(target),
-        arguments
-            .into_iter()
-            .map(py::Argument::Positional)
-            .collect(),
+fn codegen_film(film: &osk::Film) -> py::AST {
+    call!(
+        name!("osk_film"),
+        [name!(&film.picture.identifier), film.frames.clone()]
     )
-}
-
-fn fcall(target: py::Expression, arguments: Vec<py::Argument>) -> py::Expression {
-    py::Expression::Call(_box(target), arguments)
-}
-
-fn positional(arg: py::Expression) -> py::Argument {
-    py::Argument::Positional(arg)
-}
-
-fn keyword(k: String, v: py::Expression) -> py::Argument {
-    py::Argument::Keyword(k, v)
-}
-
-fn starargs(arg: py::Expression) -> py::Argument {
-    py::Argument::Starargs(arg)
-}
-
-fn attribute(x: py::Expression, name: &str) -> py::Expression {
-    py::Expression::Attribute(_box(x), name.to_string())
-}
-
-fn bop_is(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
-    py::Expression::Bop(py::Bop::Is, _box(lhs), _box(rhs))
-}
-fn bop_eq(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
-    py::Expression::Bop(py::Bop::Eq, _box(lhs), _box(rhs))
-}
-
-fn bop_and(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
-    py::Expression::Bop(py::Bop::And, _box(lhs), _box(rhs))
-}
-
-fn uop_not(e: py::Expression) -> py::Expression {
-    py::Expression::Uop(py::Uop::Not, _box(e))
-}
-
-fn statement(ex: py::Expression) -> py::Statement {
-    py::Statement::Expressions(vec![ex])
-}
-
-fn typed_args_list(names: Vec<String>) -> py::TypedArgsList {
-    let args = names.iter().map(|n| (n.to_string(), None, None)).collect();
-    py::TypedArgsList {
-        args,
-        posonly_args: vec![],
-        star_args: py::StarParams::No,
-        keyword_args: vec![],
-        star_kwargs: None,
-    }
-}
-
-fn typed_args_list_defaults(
-    names: Vec<String>,
-    defaults: Vec<Option<py::Expression>>,
-) -> py::TypedArgsList {
-    let args = names
-        .iter()
-        .enumerate()
-        .map(|(i, n)| (n.to_string(), None, defaults[i].clone()))
-        .collect();
-    py::TypedArgsList {
-        args,
-        posonly_args: vec![],
-        star_args: py::StarParams::No,
-        keyword_args: vec![],
-        star_kwargs: None,
-    }
-}
-
-fn funcdef(name: &str, params: Vec<String>, code: Vec<py::Statement>) -> py::Funcdef {
-    let name = name.to_string();
-    let r#async = false;
-    let decorators = vec![];
-    let parameters = typed_args_list(params);
-    let return_type = None;
-
-    py::Funcdef {
-        r#async,
-        decorators,
-        name,
-        return_type,
-        code,
-        parameters,
-    }
-}
-
-fn funcdef_defaults(
-    name: &str,
-    params: Vec<String>,
-    defaults: Vec<Option<py::Expression>>,
-    code: Vec<py::Statement>,
-) -> py::Funcdef {
-    let name = name.to_string();
-    let r#async = false;
-    let decorators = vec![];
-    let parameters = typed_args_list_defaults(params, defaults);
-    let return_type = None;
-
-    py::Funcdef {
-        r#async,
-        decorators,
-        name,
-        return_type,
-        code,
-        parameters,
-    }
-}
-
-fn funcdef_statement(f: py::Funcdef) -> py::Statement {
-    py::Statement::Compound(_box(py::CompoundStatement::Funcdef(f)))
-}
-
-fn list_literal(exprs: Vec<py::Expression>) -> py::Expression {
-    py::Expression::ListLiteral(
-        exprs
-            .iter()
-            .map(|e| py::SetItem::Unique(e.clone()))
-            .collect(),
-    )
-}
-
-fn tuple_literal(exprs: Vec<py::Expression>) -> py::Expression {
-    py::Expression::TupleLiteral(
-        exprs
-            .iter()
-            .map(|e| py::SetItem::Unique(e.clone()))
-            .collect(),
-    )
-}
-
-fn subscript(lhs: py::Expression, rhs: py::Expression) -> py::Expression {
-    py::Expression::Subscript(_box(lhs), vec![py::Subscript::Simple(rhs)])
-}
-
-fn codegen_film(film: &osk::Film) -> py::Statement {
-    statement(fcall_positional(
-        name("osk_film"),
-        vec![name(&film.picture.identifier), film.frames.clone()],
-    ))
-}
-
-fn for_loop(
-    item: py::Expression,
-    iterator: py::Expression,
-    for_block: Vec<py::Statement>,
-) -> py::Statement {
-    py::Statement::Compound(_box(py::CompoundStatement::For {
-        r#async: false,
-        item: vec![item],
-        iterator: vec![iterator],
-        for_block,
-        else_block: None,
-    }))
 }
 
 fn codegen_standard_picture_transforms(
     picture: &osk::Picture,
     xform_sets: &Vec<osk::TransformSet>,
     i: usize,
-    scope: (py::Expression, py::Expression, py::Expression),
-) -> py::Statement {
+    scope: (py::AST, py::AST, py::AST),
+) -> py::AST {
     let (parent_material_name, parent_visible_name, parent_xform_name) = scope;
     let material_name = fresh_name("material");
     let visible_name = fresh_name("visible");
@@ -225,21 +216,24 @@ fn codegen_standard_picture_transforms(
     let num_pics_value = &xform_set.num_pics.value;
     let mut loop_body = vec![
         // pct = nth / num_pics
-        assign(
-            name(&xform_set.num_pics.pct_identifier),
-            py::Expression::Bop(
-                py::Bop::Div,
-                _box(name(&xform_set.num_pics.nth_identifier)),
-                _box(num_pics_value.clone()),
-            ),
+        assign!(
+            [name!(&xform_set.num_pics.pct_identifier)],
+            bin_op!(
+                Div,
+                name!(&xform_set.num_pics.nth_identifier),
+                num_pics_value.clone()
+            )
         ),
     ];
     if let Some(statements) = &xform_set.statements {
         loop_body.append(&mut statements.clone());
     }
 
-    loop_body.push(assign(material_name.clone(), parent_material_name.clone()));
-    loop_body.push(assign(visible_name.clone(), parent_visible_name.clone()));
+    loop_body.push(assign!(
+        [material_name.clone()],
+        parent_material_name.clone()
+    ));
+    loop_body.push(assign!([visible_name.clone()], parent_visible_name.clone()));
 
     let mut translates = vec![];
     let mut rotates = vec![];
@@ -248,49 +242,50 @@ fn codegen_standard_picture_transforms(
         match transform {
             osk::Transform::Scale((x, y, z)) => {
                 let scale_name = fresh_name("scale");
-                loop_body.push(assign(
-                    scale_name.clone(),
-                    tuple_literal(vec![x.clone(), y.clone(), z.clone()]),
+                loop_body.push(assign!(
+                    [scale_name.clone()],
+                    tuple!(vec![x.clone(), y.clone(), z.clone()])
                 ));
-                loop_body.push(assign(
-                    visible_name.clone(),
-                    bop_and(
+                loop_body.push(assign!(
+                    [visible_name.clone()],
+                    bool_op!(
+                        And,
                         visible_name.clone(),
-                        uop_not(fcall_positional(
-                            name("osk_razor_thin"),
-                            vec![scale_name.clone()],
-                        )),
-                    ),
+                        unary_op!(
+                            Not,
+                            call!(name!("osk_razor_thin"), vec![scale_name.clone()])
+                        )
+                    )
                 ));
                 scales.push(scale_name)
             }
             osk::Transform::Translate((x, y, z)) => {
-                translates.push(tuple_literal(vec![x.clone(), y.clone(), z.clone()]))
+                translates.push(tuple!(vec![x.clone(), y.clone(), z.clone()]))
             }
             osk::Transform::Rotate((x, y, z)) => {
-                rotates.push(tuple_literal(vec![x.clone(), y.clone(), z.clone()]))
+                rotates.push(tuple!(vec![x.clone(), y.clone(), z.clone()]))
             }
-            osk::Transform::Color((h, s, v)) => loop_body.push(assign(
-                material_name.clone(),
-                tuple_literal(vec![h.clone(), s.clone(), v.clone()]),
+            osk::Transform::Color((h, s, v)) => loop_body.push(assign!(
+                [material_name.clone()],
+                tuple!(vec![h.clone(), s.clone(), v.clone()])
             )),
         }
     }
 
-    loop_body.push(assign(
-        xform_name.clone(),
-        fcall_positional(
-            attribute(parent_xform_name.clone(), "add_child"),
-            vec![fcall_positional(
-                name("Transform"),
+    loop_body.push(assign!(
+        [xform_name.clone()],
+        call!(
+            attribute!(parent_xform_name.clone(), "add_child"),
+            vec![call!(
+                name!("Transform"),
                 vec![
-                    string(&picture.identifier),
-                    list_literal(translates),
-                    list_literal(rotates),
-                    list_literal(scales),
-                ],
-            )],
-        ),
+                    constant!(&picture.identifier),
+                    list!(translates),
+                    list!(rotates),
+                    list!(scales),
+                ]
+            )]
+        )
     ));
 
     if i < xform_sets.len() - 1 {
@@ -301,62 +296,70 @@ fn codegen_standard_picture_transforms(
             (material_name, visible_name, xform_name),
         ))
     } else {
-        let mut basis_args = vec![positional(name("t")), positional(context_name.clone())];
+        let mut basis_args = vec![name!("t"), context_name.clone()];
+        let mut basis_kw_args = vec![];
         for p in &picture.basis.parameters {
             match p {
-                osk::Parameter::Simple(v) => basis_args.push(positional(v.clone())),
-                osk::Parameter::KeyValue(k, v) => basis_args.push(keyword(k.clone(), v.clone())),
+                osk::Parameter::Simple(v) => basis_args.push(v.clone()),
+                osk::Parameter::KeyValue(k, v) => {
+                    basis_kw_args.push(keyword!(k.clone(), v.clone()))
+                }
             }
         }
 
-        loop_body.push(assign(
-            context_name.clone(),
-            tuple_literal(vec![material_name.clone(), visible_name.clone()]),
+        loop_body.push(assign!(
+            [context_name.clone()],
+            tuple!(vec![material_name.clone(), visible_name.clone()])
         ));
 
-        loop_body.push(assign(basis_name.clone(), name(&picture.basis.identifier)));
+        loop_body.push(assign!(
+            [basis_name.clone()],
+            name!(&picture.basis.identifier)
+        ));
 
-        let mut basis_args_custom_primitive = vec![positional(basis_name.clone())];
+        let mut basis_args_custom_primitive = vec![basis_name.clone()];
         basis_args_custom_primitive.append(&mut basis_args.clone());
 
-        loop_body.push(if_then(
-            vec![(
-                fcall_positional(name("osk_is_primitive"), vec![basis_name.clone()]),
-                vec![statement(fcall_positional(
-                    attribute(xform_name.clone(), "add_child"),
-                    vec![fcall(name("Primitive"), basis_args_custom_primitive)],
-                ))],
-            )],
-            Some(vec![statement(fcall_positional(
-                attribute(xform_name, "add_child"),
-                vec![fcall(basis_name, basis_args)],
-            ))]),
+        loop_body.push(if_stmt!(
+            call!(name!("osk_is_primitive"), [basis_name.clone()]),
+            [expr!(call!(
+                attribute!(xform_name.clone(), "add_child"),
+                vec![call_kw!(
+                    name!("Primitive"),
+                    basis_args_custom_primitive,
+                    basis_kw_args.clone()
+                )]
+            ))],
+            [expr!(call!(
+                attribute!(xform_name, "add_child"),
+                vec![call_kw!(basis_name, basis_args, basis_kw_args)]
+            ))]
         ));
     }
 
-    for_loop(
-        name(&xform_set.num_pics.nth_identifier),
-        fcall_positional(name("range"), vec![xform_set.num_pics.value.clone()]),
-        loop_body,
+    for_loop!(
+        name!(&xform_set.num_pics.nth_identifier),
+        call!(name!("range"), vec![xform_set.num_pics.value.clone()]),
+        loop_body
     )
 }
 
-fn codegen_standard_picture(picture: &osk::Picture) -> py::Statement {
+fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
     let material_name = fresh_name("material");
     let visible_name = fresh_name("visible");
     let root_name = fresh_name("root");
 
     let mut body = vec![
-        assign(name("t"), name("pt")),
-        assign_multiple(
-            vec![material_name.clone(), visible_name.clone()],
-            name("_context"),
+        assign!([name!("t")], name!("pt")),
+        assign!(
+            [material_name.clone(), visible_name.clone()],
+            name!("_context")
         ),
     ];
 
-    body.push(assign(
-        root_name.clone(),
-        fcall_positional(name("Transform"), vec![string(&picture.identifier)]),
+    body.push(assign!(
+        [root_name.clone()],
+        call!(name!("Transform"), [constant!(&picture.identifier)])
     ));
 
     let body_specific = match picture.operations {
@@ -371,74 +374,80 @@ fn codegen_standard_picture(picture: &osk::Picture) -> py::Statement {
 
     body.push(body_specific);
 
-    body.push(py::Statement::Return(vec![root_name]));
+    body.push(ret!(root_name));
 
-    let mut parameters = vec!["pt".to_owned(), "_context".to_owned()];
+    let mut parameters = vec![arg!("pt"), arg!("_context")];
     for p in &picture.parameters {
-        parameters.push(p.clone());
+        parameters.push(arg!(p.clone()));
     }
 
-    funcdef_statement(funcdef(&picture.identifier, parameters, body))
+    funcdef!(&picture.identifier, args!(parameters), body)
 }
 
-fn codegen_picture_list(picture_list: &osk::PictureList) -> Vec<py::Statement> {
-    let children: Vec<py::Expression> = picture_list
+fn codegen_picture_list(picture_list: &osk::PictureList) -> py::AST {
+    let children: Vec<py::AST> = picture_list
         .invokes
         .iter()
         .map(|i| {
-            let mut user_args: Vec<py::Argument> = i
+            let mut user_args: Vec<py::AST> = i
                 .parameters
                 .iter()
                 .map(|p| match p {
-                    osk::Parameter::Simple(v) => positional(v.clone()),
-                    osk::Parameter::KeyValue(k, v) => keyword(k.clone(), v.clone()),
+                    osk::Parameter::Simple(v) => v.clone(),
+                    osk::Parameter::KeyValue(k, v) => keyword!(k.clone(), v.clone()),
                 })
                 .collect();
-            let mut args = vec![positional(name("pt")), positional(name("_context"))];
+            let mut args = vec![arg!("pt"), arg!("_context")];
             args.append(&mut user_args);
-            fcall(name(&i.identifier), args)
+            call!(name!(&i.identifier), args)
         })
         .collect();
 
-    let mut none_body = vec![assign(
-        name("_root"),
-        fcall_positional(name("Transform"), vec![string(&picture_list.identifier)]),
+    let mut none_body = vec![assign!(
+        [name!("_root")],
+        call!(
+            name!("Transform"),
+            vec![constant!(&picture_list.identifier)]
+        )
     )];
     none_body.append(
         &mut children
             .iter()
             .map(|child| {
-                statement(fcall_positional(
-                    attribute(name("_root"), "add_child"),
-                    vec![child.clone()],
+                expr!(call!(
+                    attribute!(name!("_root"), "add_child"),
+                    [child.clone()]
                 ))
             })
             .collect(),
     );
-    none_body.push(py_return(name("_root")));
+    none_body.push(ret!(name!("_root")));
 
-    let mut branches = vec![(bop_is(name("i"), py::Expression::None), none_body)];
-    let mut i = 0;
-    for child in children {
-        branches.push((
-            bop_eq(name("i"), py::Expression::Int(i)),
-            vec![py_return(child)],
-        ));
-        i = i + 1;
+    let mut body = vec![];
+    let mut i = children.len();
+    for child in children.iter().rev() {
+        body = vec![if_stmt!(
+            compare!(Is, name!("i"), constant!(i - 1)),
+            vec![ret!(child)],
+            body
+        )];
+        i = i - 1;
     }
 
-    let body = vec![if_then(branches, None)];
+    body = vec![
+        if_stmt!(compare!(Is, name!("i"), name!("None")), none_body, body),
+        raise!(call!(name!("IndexError"))),
+    ];
 
-    vec![funcdef_statement(funcdef_defaults(
+    funcdef!(
         &picture_list.identifier,
-        vec!["pt".to_owned(), "_context".to_owned(), "i".to_owned()],
-        vec![None, None, Some(py::Expression::None)],
-        body,
-    ))]
+        args_defaults!([arg!("pt"), arg!("_context"), arg!("i")], [name!("None")]),
+        body
+    )
 }
 
-pub fn codegen_toplevel(tl: &osk::TopLevel) -> Vec<py::Statement> {
-    match tl {
+pub fn codegen_toplevel(tl: &osk::TopLevel) -> py::AST {
+    let module_body = match tl {
         osk::TopLevel::Film(f) => vec![codegen_film(f)],
         osk::TopLevel::Definition(osk::Definition::Standard(p)) => {
             vec![codegen_standard_picture(p)]
@@ -446,10 +455,11 @@ pub fn codegen_toplevel(tl: &osk::TopLevel) -> Vec<py::Statement> {
         osk::TopLevel::Definition(osk::Definition::Function(p)) => {
             vec![codegen_standard_picture(p)]
         }
-        osk::TopLevel::Definition(osk::Definition::Selection(p)) => codegen_picture_list(p),
+        osk::TopLevel::Definition(osk::Definition::Selection(p)) => vec![codegen_picture_list(p)],
         osk::TopLevel::PythonCodeBlock(b) => b.lines.clone(),
         osk::TopLevel::Skip => vec![],
-    }
+    };
+    module!(module_body)
 }
 
 pub fn preamble() -> &'static str {
@@ -457,13 +467,5 @@ pub fn preamble() -> &'static str {
 }
 
 pub fn to_python_source(tl: &osk::TopLevel) -> String {
-    let stmts = codegen_toplevel(tl);
-    format_module(&stmts)
-}
-
-pub fn print_python_ast(code: &str) {
-    let ast = python_parser::file_input(python_parser::make_strspan(code))
-        .unwrap()
-        .1;
-    println!("{:#?}", ast)
+    py::unparse(&codegen_toplevel(tl))
 }

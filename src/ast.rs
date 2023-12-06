@@ -1,14 +1,63 @@
 use pest::iterators::*;
 use pest::*;
-use python_parser::ast as py;
-use regex::Regex;
+use std::fmt;
 
 use crate::parser::Rule;
 
-type ParseError = pest::error::Error<()>;
+use crate::python as py;
 
-type PythonExpression = py::Expression;
-type PythonStatements = Vec<py::Statement>;
+#[derive(Debug)]
+pub struct Error {
+    pub span: (usize, usize),
+    pub file: Option<String>,
+    pub line_number: usize,
+    pub column_number: usize,
+    pub line: String,
+    pub message: String,
+}
+
+impl Error {
+    fn format(&self) -> String {
+        let file = match &self.file {
+            Some(s) => s,
+            None => "<unknown>",
+        };
+        let spacing = String::from_utf8(vec![b' '; self.line_number.to_string().len()]).unwrap();
+        let mut carat = String::from_utf8(vec![b' '; self.column_number - 1]).unwrap();
+        carat.push('^');
+        format!(
+            "{s    }--> {p}:{ls}:{c}\n\
+             {s    } |\n\
+             {ls:w$} | {line}\n\
+             {s    } | {carat}\n\
+             {s    } |\n\
+             {s    } = {message}",
+            s = spacing,
+            w = spacing.len(),
+            p = file,
+            ls = self.line_number,
+            c = self.column_number,
+            line = self.line,
+            message = self.message
+        )
+    }
+
+    pub fn with_file(mut self, file: &str) -> Self {
+        self.file = Some(file.to_owned());
+        self
+    }
+
+    pub fn adjust_line(mut self, n: usize) -> Self {
+        self.line_number += n;
+        self
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.format())
+    }
+}
 
 #[derive(Debug)]
 pub enum TopLevel {
@@ -56,19 +105,19 @@ pub enum Csg {
 #[derive(Debug)]
 pub struct TransformSet {
     pub num_pics: NumPics,
-    pub statements: Option<PythonStatements>,
+    pub statements: Option<Vec<py::AST>>,
     pub transforms: Vec<Transform>,
     // pub iteration: bool,
 }
 
 #[derive(Debug)]
 pub struct NumPics {
-    pub value: PythonExpression,
+    pub value: py::AST,
     pub nth_identifier: String,
     pub pct_identifier: String,
 }
 
-type PythonExpressionTriple = (PythonExpression, PythonExpression, PythonExpression);
+type PythonExpressionTriple = (py::AST, py::AST, py::AST);
 
 #[derive(Debug)]
 pub enum Transform {
@@ -81,7 +130,7 @@ pub enum Transform {
 #[derive(Debug)]
 pub struct Film {
     pub picture: Invoke,
-    pub frames: PythonExpression,
+    pub frames: py::AST,
 }
 
 #[derive(Debug, Clone)]
@@ -92,64 +141,68 @@ pub struct Invoke {
 
 #[derive(Debug, Clone)]
 pub enum Parameter {
-    Simple(PythonExpression),
-    KeyValue(String, PythonExpression),
+    Simple(py::AST),
+    KeyValue(String, py::AST),
 }
 
 #[derive(Debug)]
 pub struct PythonCodeBlock {
-    pub lines: PythonStatements,
+    pub lines: Vec<py::AST>,
 }
 
-fn error_from_span(span: &Span, message: &str) -> ParseError {
-    pest::error::Error::new_from_span(
-        pest::error::ErrorVariant::<()>::CustomError {
-            message: message.to_owned(),
-        },
-        *span,
-    )
+fn error_from_span(span: &Span, message: &str) -> Error {
+    let (line_number, column_number) = span.start_pos().line_col();
+    let line = span.lines().nth(line_number).unwrap().to_owned();
+    Error {
+        file: None,
+        line_number,
+        column_number,
+        line,
+        message: message.to_owned(),
+        span: (span.start(), span.end()),
+    }
+}
+
+fn error_from_python(span: &Span, error: &py::Error) -> Error {
+    let line: String = span
+        .as_str()
+        .lines()
+        .nth(error.line - 1)
+        .unwrap()
+        .to_owned();
+    Error {
+        file: None,
+        line_number: error.line,
+        column_number: error.offset,
+        line,
+        message: error.message.to_owned(),
+        span: (span.start(), span.end()),
+    }
 }
 
 fn fake_span(code: &str) -> Span {
     Span::new(code, 0, code.len()).unwrap()
 }
 
-/// strip out trailing whitespace and comments that may have been picked up by
-/// our parser. trailing comments break the python parser for some reason...
-fn prepare_python_code(code:&str) -> String {
-    let re = Regex::new("#[^\\n]*(\\n|$)").unwrap();
-    re.replace_all(code.trim(), "").trim().to_string()
-}
-
-pub fn to_python_statements(codes: &Vec<Span>) -> Result<PythonStatements, ParseError> {
+pub fn to_python_statements(codes: &Vec<Span>) -> Result<Vec<py::AST>, Error> {
     let mut statements = vec![];
     for code in codes {
-        match python_parser::file_input(python_parser::make_strspan(&prepare_python_code(code.as_str()))) {
-            Ok((_, ref mut s)) => statements.append(s),
-            Err(_) => return Err(error_from_span(code, "python parse error")),
+        match py::parse_exec(code.as_str()) {
+            Ok(v) => statements.push(v),
+            Err(e) => return Err(error_from_python(code, &e)),
         }
     }
     Ok(statements)
 }
 
-pub fn to_python_expression(code: &Span) -> Result<PythonExpression, ParseError> {
-    match to_python_statements(&vec![*code]) {
-        Ok(s) if s.len() == 1 => match &s[0] {
-            py::Statement::Assignment(lhs, _) if lhs.len() == 1 => Ok(lhs[0].clone()),
-            _ => Err(error_from_span(
-                code,
-                "python expression parse error (expected py::Statement::Assignment)",
-            )),
-        },
-        Ok(s) => Err(error_from_span(
-            code,
-            &format!("expected 1 expression, got {}", s.len()),
-        )),
-        Err(description) => Err(description),
+pub fn to_python_expression(code: &Span) -> Result<py::AST, Error> {
+    match py::parse_eval(code.as_str()) {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(error_from_python(code, &e)),
     }
 }
 
-fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Vec<Parameter>, ParseError> {
+fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Vec<Parameter>, Error> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::parameters => {
             let param_pairs = pairs.next().unwrap().into_inner();
@@ -175,7 +228,7 @@ fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Vec<Parameter>, ParseEr
     }
 }
 
-fn analyze_parameters_names(pairs: &mut Pairs<Rule>) -> Result<Vec<String>, ParseError> {
+fn analyze_parameters_names(pairs: &mut Pairs<Rule>) -> Result<Vec<String>, Error> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::parameters => {
             let param_pairs = pairs.next().unwrap().into_inner();
@@ -198,7 +251,7 @@ fn analyze_parameters_names(pairs: &mut Pairs<Rule>) -> Result<Vec<String>, Pars
     }
 }
 
-fn analyze_invoke(pairs: &mut Pairs<Rule>) -> Result<Invoke, ParseError> {
+fn analyze_invoke(pairs: &mut Pairs<Rule>) -> Result<Invoke, Error> {
     let identifier = pairs.next().unwrap().as_str().to_string();
     let parameters = analyze_parameters(pairs)?;
     Ok(Invoke {
@@ -223,7 +276,7 @@ fn analyze_film_parameters<'a>(pairs: &mut Pairs<'a, Rule>) -> Vec<(String, Span
     }
 }
 
-fn analyze_film(pairs: &mut Pairs<Rule>) -> Result<Film, ParseError> {
+fn analyze_film(pairs: &mut Pairs<Rule>) -> Result<Film, Error> {
     let film_identifier = pairs.next().unwrap();
     if film_identifier.as_str() != "Film" {
         return Err(error_from_span(
@@ -247,7 +300,7 @@ fn analyze_film(pairs: &mut Pairs<Rule>) -> Result<Film, ParseError> {
     })
 }
 
-fn analyze_python_code(pairs: &mut Pairs<Rule>) -> Result<PythonCodeBlock, ParseError> {
+fn analyze_python_code(pairs: &mut Pairs<Rule>) -> Result<PythonCodeBlock, Error> {
     let mut lines = vec![];
     for pair in pairs {
         lines.push(pair.as_span());
@@ -257,7 +310,7 @@ fn analyze_python_code(pairs: &mut Pairs<Rule>) -> Result<PythonCodeBlock, Parse
     })
 }
 
-fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> Result<NumPics, ParseError> {
+fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> Result<NumPics, Error> {
     let p = pairs.next().unwrap();
     let value = to_python_expression(&p.as_span())?;
     let mut nth_identifier = "nth".to_string();
@@ -303,7 +356,7 @@ fn analyze_transform_arguments<'a>(
     (x, y, z)
 }
 
-fn default(v: Option<Span>, default: &str) -> Result<PythonExpression, ParseError> {
+fn default(v: Option<Span>, default: &str) -> Result<py::AST, Error> {
     let default_span = fake_span(default);
     to_python_expression(match v {
         None => &default_span,
@@ -311,7 +364,7 @@ fn default(v: Option<Span>, default: &str) -> Result<PythonExpression, ParseErro
     })
 }
 
-fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Result<Vec<Transform>, ParseError> {
+fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Result<Vec<Transform>, Error> {
     let mut transforms: Vec<Transform> = vec![];
     for pair in pairs {
         let transform = match pair.as_rule() {
@@ -338,12 +391,15 @@ fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Result<Vec<Transform>, ParseEr
     Ok(transforms)
 }
 
-fn analyze_transform_expression(
-    pairs: &mut Pairs<Rule>,
-) -> Result<Option<PythonStatements>, ParseError> {
+fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Result<Option<Vec<py::AST>>, Error> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::transform_expressions => {
-            let spans = pairs.next().unwrap().into_inner().map(|p| p.as_span()).collect::<Vec<Span>>();
+            let spans = pairs
+                .next()
+                .unwrap()
+                .into_inner()
+                .map(|p| p.as_span())
+                .collect::<Vec<Span>>();
             let statements = to_python_statements(&spans)?;
             Ok(Some(statements))
         }
@@ -351,7 +407,7 @@ fn analyze_transform_expression(
     }
 }
 
-fn analyze_transform_set(pairs: &mut Pairs<Rule>) -> Result<TransformSet, ParseError> {
+fn analyze_transform_set(pairs: &mut Pairs<Rule>) -> Result<TransformSet, Error> {
     let num_pics = analyze_num_pics(&mut pairs.next().unwrap().into_inner())?;
     let statements = analyze_transform_expression(pairs)?;
     let transforms = analyze_transforms(pairs)?;
@@ -363,7 +419,7 @@ fn analyze_transform_set(pairs: &mut Pairs<Rule>) -> Result<TransformSet, ParseE
     })
 }
 
-fn analyze_transform_sets(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseError> {
+fn analyze_transform_sets(pairs: &mut Pairs<Rule>) -> Result<Operations, Error> {
     let mut operations: Vec<TransformSet> = vec![];
     for pair in pairs {
         if pair.as_rule() != Rule::transform_set {
@@ -379,7 +435,7 @@ fn analyze_transform_sets(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseEr
     Ok(Operations::TransformSet(operations))
 }
 
-fn analyze_csg_operation(pairs: &mut Pairs<Rule>) -> Result<Csg, ParseError> {
+fn analyze_csg_operation(pairs: &mut Pairs<Rule>) -> Result<Csg, Error> {
     Ok(match pairs.next().unwrap().as_str() {
         "+" => Csg::Union(analyze_invoke(pairs)?),
         "-" => Csg::Difference(analyze_invoke(pairs)?),
@@ -389,7 +445,7 @@ fn analyze_csg_operation(pairs: &mut Pairs<Rule>) -> Result<Csg, ParseError> {
     })
 }
 
-fn analyze_csg_operations(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseError> {
+fn analyze_csg_operations(pairs: &mut Pairs<Rule>) -> Result<Operations, Error> {
     let mut operations: Vec<Csg> = vec![];
 
     for pair in pairs {
@@ -407,7 +463,7 @@ fn analyze_csg_operations(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseEr
     Ok(Operations::Csg(operations))
 }
 
-fn analyze_operations(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseError> {
+fn analyze_operations(pairs: &mut Pairs<Rule>) -> Result<Operations, Error> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::transform_set => analyze_transform_sets(pairs),
         Some(x) if x.as_rule() == Rule::csg_operation => analyze_csg_operations(pairs),
@@ -415,7 +471,7 @@ fn analyze_operations(pairs: &mut Pairs<Rule>) -> Result<Operations, ParseError>
     }
 }
 
-fn analyze_picture(pairs: &mut Pairs<Rule>) -> Result<Picture, ParseError> {
+fn analyze_picture(pairs: &mut Pairs<Rule>) -> Result<Picture, Error> {
     let mut pairs = pairs;
     let identifier = pairs.next().unwrap().as_str().to_string();
     let parameters = analyze_parameters_names(&mut pairs)?;
@@ -430,7 +486,7 @@ fn analyze_picture(pairs: &mut Pairs<Rule>) -> Result<Picture, ParseError> {
     })
 }
 
-fn analyze_picture_list(pairs: &mut Pairs<Rule>) -> Result<PictureList, ParseError> {
+fn analyze_picture_list(pairs: &mut Pairs<Rule>) -> Result<PictureList, Error> {
     let identifier = pairs.next().unwrap().as_str().to_string();
 
     let mut invokes: Vec<Invoke> = vec![];
@@ -445,7 +501,7 @@ fn analyze_picture_list(pairs: &mut Pairs<Rule>) -> Result<PictureList, ParseErr
     })
 }
 
-fn analyze_definition(pairs: &mut Pairs<Rule>) -> Result<Definition, ParseError> {
+fn analyze_definition(pairs: &mut Pairs<Rule>) -> Result<Definition, Error> {
     Ok(match pairs.peek().unwrap().as_rule() {
         Rule::standard_picture => {
             Definition::Standard(analyze_picture(&mut pairs.next().unwrap().into_inner())?)
@@ -460,7 +516,7 @@ fn analyze_definition(pairs: &mut Pairs<Rule>) -> Result<Definition, ParseError>
     })
 }
 
-pub fn analyze_top_level(pair: Pair<Rule>) -> Result<TopLevel, ParseError> {
+pub fn analyze_top_level(pair: Pair<Rule>) -> Result<TopLevel, Error> {
     Ok(match pair.as_rule() {
         Rule::film => TopLevel::Film(analyze_film(&mut pair.into_inner())?),
         Rule::python_code => {
@@ -478,9 +534,9 @@ pub fn analyze_top_level(pair: Pair<Rule>) -> Result<TopLevel, ParseError> {
 mod tests {
     use super::*;
     use crate::parser::parse_source;
+    use normalize_line_endings::normalized;
     use std::fs;
     use std::iter::FromIterator;
-    use normalize_line_endings::normalized;
     use test_case::test_case;
 
     #[test_case("cases/test_case_01.osk"; "case 01")]
@@ -501,7 +557,7 @@ mod tests {
     fn analysis(path: &str) {
         let source = fs::read_to_string(&path).expect("cannot read file");
         let source_normalized = String::from_iter(normalized(source.chars()));
-        match parse_source(&source_normalized, &path) {
+        match parse_source(&source_normalized) {
             Ok(pairs) => {
                 for pair in pairs {
                     match analyze_top_level(pair) {

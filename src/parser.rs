@@ -6,7 +6,7 @@ use pest::Parser;
 #[grammar = "grammar.pest"]
 pub struct OskarParser;
 
-pub fn parse_source<'a>(source: &'a str, path: &str) -> Result<Pairs<'a, Rule>, Error<Rule>> {
+pub fn parse_source<'a>(source: &'a str) -> Result<Pairs<'a, Rule>, Error<Rule>> {
     OskarParser::parse(Rule::start, source)
 }
 

@@ -15,10 +15,6 @@ regex = "*"
 normalize-line-endings = "*"
 lazy_static = "1.4.0"
 
-[dependencies.python-parser]
-version = "0.2.0"
-default-features = false
-
 [dependencies.pyo3]
 version = "0.20.0"
 features = ["auto-initialize", "generate-import-lib"]
