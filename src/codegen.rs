@@ -352,7 +352,7 @@ fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
     let mut body = vec![
         assign!([name!("t")], name!("pt")),
         assign!(
-            [material_name.clone(), visible_name.clone()],
+            [tuple!([material_name.clone(), visible_name.clone()])],
             name!("_context")
         ),
     ];
