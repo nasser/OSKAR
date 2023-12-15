@@ -16,8 +16,10 @@ use crate::python as py;
 pub struct Error {
     /// the span that generated the error, offsets into original source
     pub span: (usize, usize),
-    /// the offset into the span to focus the error on
-    pub offset: usize,
+    /// the offset in lines into the span to focus the error on
+    pub line_offset: usize,
+    /// the offset in columns into the span to focus the error on
+    pub column_offset: usize,
     /// a description of the error
     pub message: String,
 }
@@ -43,14 +45,16 @@ fn get_line_col(source: &str, offset: usize) -> Option<(usize, usize)> {
 /// File and source are not known to us in this module and must be passed in
 /// from the top level of the compiler
 pub fn format_error(error: &Error, file: &str, source: &str) -> String {
+    eprintln!("{:?}", error);
     let (start_line, start_col) =
         get_line_col(&source, error.span.0).expect("error span out of bounds of source");
-    let line = source
+    let line = error.line_offset + start_line - 1;
+    let column = error.column_offset + start_col;
+    let line_content = source
         .lines()
-        .nth(start_line - 1)
+        .nth(line - 1)
         .expect("error line out of bounds of source");
-    let column = error.offset + start_col;
-    let spacing = String::from_utf8(vec![b' '; start_line.to_string().len()]).unwrap();
+    let spacing = String::from_utf8(vec![b' '; line.to_string().len()]).unwrap();
     let mut carat = String::from_utf8(vec![b' '; column - 1]).unwrap();
     carat.push('^');
     format!(
@@ -63,9 +67,9 @@ pub fn format_error(error: &Error, file: &str, source: &str) -> String {
         s = spacing,
         w = spacing.len(),
         p = file,
-        ls = start_line,
+        ls = line,
         c = column,
-        line = line,
+        line = line_content,
         message = error.message
     )
 }
@@ -162,9 +166,10 @@ pub struct PythonCodeBlock {
 }
 
 fn error_from_span(span: &Span, message: &str) -> Error {
-    let (_, column_number) = span.start_pos().line_col();
+    let (line_number, column_number) = span.start_pos().line_col();
     Error {
-        offset: column_number,
+        line_offset: line_number,
+        column_offset: column_number,
         message: message.to_owned(),
         span: (span.start(), span.end()),
     }
@@ -172,7 +177,8 @@ fn error_from_span(span: &Span, message: &str) -> Error {
 
 fn error_from_python(span: &Span, error: &py::Error) -> Error {
     Error {
-        offset: error.offset,
+        line_offset: error.line,
+        column_offset: error.offset,
         message: error.message.to_owned(),
         span: (span.start(), span.end()),
     }
