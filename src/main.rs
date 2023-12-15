@@ -93,9 +93,14 @@ fn compile(path: String) {
                         }
                     }
                     Err(error) => {
-                        let pair_line = pair.line_col().0;
-                        // analysis error
-                        eprintln!("{}", error.with_file(&path).adjust_line(pair_line));
+                        eprintln!("WORK IN PROGRESS ANALYSIS ERROR REPORTING");
+                        let pair_line = pair.line_col().0 - 1;
+                        let line_from_source = source_normalized.lines().nth(pair_line).unwrap();
+                        let last_line = &source_normalized[0..pair.as_span().end()].lines().last().unwrap();
+                        eprintln!("pair {:?}", pair.as_str());
+                        eprintln!("slice {:?}", &source_normalized[error.span.0..error.span.1]);
+                        eprintln!("error.span {:?}", error.span);
+                        eprintln!("analysis error\n{}", error.with_file(&path).with_line(line_from_source).adjust_line(pair_line));
                         process::exit(1);
                     }
                 }

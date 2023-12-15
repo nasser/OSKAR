@@ -311,7 +311,8 @@ fn analyze_python_code(pairs: &mut Pairs<Rule>) -> Result<PythonCodeBlock, Error
 }
 
 fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> Result<NumPics, Error> {
-    let p = pairs.next().unwrap();
+    let p = pairs.next().unwrap().into_inner().next().unwrap();
+    // let p = pairs.next().unwrap();
     let value = to_python_expression(&p.as_span())?;
     let mut nth_identifier = "nth".to_string();
     let mut pct_identifier = "pct".to_string();
