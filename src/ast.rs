@@ -7,6 +7,7 @@ use crate::parser::Rule;
 use crate::python as py;
 
 #[derive(Debug)]
+/// OSKAR Analyzer Error
 pub struct Error {
     pub span: (usize, usize),
     pub file: Option<String>,
@@ -47,8 +48,18 @@ impl Error {
         self
     }
 
-    pub fn adjust_line(mut self, n: usize) -> Self {
-        self.line_number += n;
+    pub fn with_line(mut self, line: &str) -> Self {
+        self.line = line.to_owned();
+        self
+    }
+
+    pub fn with_line_number(mut self, n: usize) -> Self {
+        self.line_number = n;
+        self
+    }
+
+    pub fn with_column_number(mut self, n: usize) -> Self {
+        self.column_number = n;
         self
     }
 }
@@ -311,8 +322,7 @@ fn analyze_python_code(pairs: &mut Pairs<Rule>) -> Result<PythonCodeBlock, Error
 }
 
 fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> Result<NumPics, Error> {
-    let p = pairs.next().unwrap().into_inner().next().unwrap();
-    // let p = pairs.next().unwrap();
+    let p = pairs.next().unwrap();
     let value = to_python_expression(&p.as_span())?;
     let mut nth_identifier = "nth".to_string();
     let mut pct_identifier = "pct".to_string();
