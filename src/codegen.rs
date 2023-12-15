@@ -427,7 +427,7 @@ fn codegen_picture_list(picture_list: &osk::PictureList) -> py::AST {
     let mut i = children.len();
     for child in children.iter().rev() {
         body = vec![if_stmt!(
-            compare!(Is, name!("i"), constant!(i - 1)),
+            compare!(Eq, name!("i"), constant!(i - 1)),
             vec![ret!(child)],
             body
         )];
