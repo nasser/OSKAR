@@ -59,7 +59,7 @@ fn compile(path: String) {
     match parse_source(&source_normalized) {
         Err(e) => {
             // parse error
-            println!("{}", e.with_path(&path));
+            eprintln!("{}", e.with_path(&path));
             process::exit(1);
         }
         Ok(pairs) => {
@@ -95,7 +95,7 @@ fn compile(path: String) {
                     Err(error) => {
                         let pair_line = pair.line_col().0;
                         // analysis error
-                        println!("{}", error.with_file(&path).adjust_line(pair_line));
+                        eprintln!("{}", error.with_file(&path).adjust_line(pair_line));
                         process::exit(1);
                     }
                 }
