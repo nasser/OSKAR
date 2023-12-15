@@ -51,23 +51,6 @@ fn comment_string(s: &str) -> String {
     ret
 }
 
-// TODO move into ast
-fn get_line_col(source: &str, offset: usize) -> Option<(usize, usize)> {
-    let mut line_number = 1;
-    let mut current_offset = 0;
-
-    for line in source.lines() {
-        let line_length = line.len() + 1;
-        if current_offset + line_length > offset {
-            return Some((line_number, offset - current_offset));
-        }
-        line_number += 1;
-        current_offset += line_length;
-    }
-
-    None
-}
-
 fn compile(path: String) {
     let source = fs::read_to_string(&path).expect("cannot read file");
     // let source_no_comments = comment_re.replace_all(&source, "");
@@ -110,17 +93,9 @@ fn compile(path: String) {
                         }
                     }
                     Err(error) => {
-                        // TODO this is a mess, but analysis errors should be very rare
-                        let (ll, cc) = get_line_col(&source_normalized, error.span.0).unwrap();
-                        let line_from_source = source_normalized.lines().nth(ll - 1).unwrap();
-                        let ccc = error.column_number + cc;
                         eprintln!(
                             "analysis error\n{}",
-                            error
-                                .with_file(&path)
-                                .with_line(line_from_source)
-                                .with_line_number(ll)
-                                .with_column_number(ccc)
+                            ast::format_error(&error, &path, &source_normalized)
                         );
                         process::exit(1);
                     }

@@ -1,6 +1,5 @@
 use pest::iterators::*;
 use pest::*;
-use std::fmt;
 
 use crate::parser::Rule;
 
@@ -8,66 +7,67 @@ use crate::python as py;
 
 #[derive(Debug)]
 /// OSKAR Analyzer Error
+///
+/// Captures the minimal amount of information required to report an error in
+/// the analysis phase. Certain things like line number and file name are not
+/// accessible to us here and can only be derived at the top level of the
+/// compiler. The data in this struct is incomplete and exists solely to help
+/// the top level report the error correctly.
 pub struct Error {
+    /// the span that generated the error, offsets into original source
     pub span: (usize, usize),
-    pub file: Option<String>,
-    pub line_number: usize,
-    pub column_number: usize,
-    pub line: String,
+    /// the offset into the span to focus the error on
+    pub offset: usize,
+    /// a description of the error
     pub message: String,
 }
 
-impl Error {
-    fn format(&self) -> String {
-        let file = match &self.file {
-            Some(s) => s,
-            None => "<unknown>",
-        };
-        let spacing = String::from_utf8(vec![b' '; self.line_number.to_string().len()]).unwrap();
-        let mut carat = String::from_utf8(vec![b' '; self.column_number - 1]).unwrap();
-        carat.push('^');
-        format!(
-            "{s    }--> {p}:{ls}:{c}\n\
-             {s    } |\n\
-             {ls:w$} | {line}\n\
-             {s    } | {carat}\n\
-             {s    } |\n\
-             {s    } = {message}",
-            s = spacing,
-            w = spacing.len(),
-            p = file,
-            ls = self.line_number,
-            c = self.column_number,
-            line = self.line,
-            message = self.message
-        )
+fn get_line_col(source: &str, offset: usize) -> Option<(usize, usize)> {
+    let mut line_number = 1;
+    let mut current_offset = 0;
+
+    for line in source.lines() {
+        let line_length = line.len() + 1;
+        if current_offset + line_length > offset {
+            return Some((line_number, offset - current_offset));
+        }
+        line_number += 1;
+        current_offset += line_length;
     }
 
-    pub fn with_file(mut self, file: &str) -> Self {
-        self.file = Some(file.to_owned());
-        self
-    }
-
-    pub fn with_line(mut self, line: &str) -> Self {
-        self.line = line.to_owned();
-        self
-    }
-
-    pub fn with_line_number(mut self, n: usize) -> Self {
-        self.line_number = n;
-        self
-    }
-
-    pub fn with_column_number(mut self, n: usize) -> Self {
-        self.column_number = n;
-        self
-    }
+    None
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.format())
-    }
+/// Format an analysis error
+/// 
+/// File and source are not known to us in this module and must be passed in
+/// from the top level of the compiler
+pub fn format_error(error: &Error, file: &str, source: &str) -> String {
+    let (start_line, start_col) =
+        get_line_col(&source, error.span.0).expect("error span out of bounds of source");
+    let line = source
+        .lines()
+        .nth(start_line - 1)
+        .expect("error line out of bounds of source");
+    let column = error.offset + start_col;
+    let spacing = String::from_utf8(vec![b' '; start_line.to_string().len()]).unwrap();
+    let mut carat = String::from_utf8(vec![b' '; column - 1]).unwrap();
+    carat.push('^');
+    format!(
+        "{s    }--> {p}:{ls}:{c}\n\
+            {s    } |\n\
+            {ls:w$} | {line}\n\
+            {s    } | {carat}\n\
+            {s    } |\n\
+            {s    } = {message}",
+        s = spacing,
+        w = spacing.len(),
+        p = file,
+        ls = start_line,
+        c = column,
+        line = line,
+        message = error.message
+    )
 }
 
 #[derive(Debug)]
@@ -162,30 +162,17 @@ pub struct PythonCodeBlock {
 }
 
 fn error_from_span(span: &Span, message: &str) -> Error {
-    let (line_number, column_number) = span.start_pos().line_col();
-    let line = span.lines().nth(line_number).unwrap().to_owned();
+    let (_, column_number) = span.start_pos().line_col();
     Error {
-        file: None,
-        line_number,
-        column_number,
-        line,
+        offset: column_number,
         message: message.to_owned(),
         span: (span.start(), span.end()),
     }
 }
 
 fn error_from_python(span: &Span, error: &py::Error) -> Error {
-    let line: String = span
-        .as_str()
-        .lines()
-        .nth(error.line - 1)
-        .unwrap()
-        .to_owned();
     Error {
-        file: None,
-        line_number: error.line,
-        column_number: error.offset,
-        line,
+        offset: error.offset,
         message: error.message.to_owned(),
         span: (span.start(), span.end()),
     }
