@@ -36,8 +36,8 @@ py_parenthetical    = _{ "(" ~ expression ~ ")"}
 py_list             = _{ "[" ~ expression? ~ ("," ~ expression)* ~ "]"}
 py_dictionary       = _{ "{" ~ py_entry? ~ ("," ~ py_entry)* ~ "}"}
 py_entry            = _{ py_string ~ ":" ~ expression }
-py_subscript        = _{ py_term ~ "[" ~ expression_simple ~ "]" }
-py_attribute        = _{ py_term ~ "." ~ expression_simple }
+py_subscript        = _{ py_term ~ ("[" ~ expression_simple ~ "]")+ }
+py_attribute        = _{ py_term ~ ("." ~ expression_simple)+ }
 
 py_string           = _{ py_string_single | py_string_double }
 py_string_single    = _{ "'" ~ (!"'" ~ ANY)* ~ "'" }
