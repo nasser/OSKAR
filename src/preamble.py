@@ -194,8 +194,8 @@ class Line(Node):
         spline.use_endpoint_u = True
         spline.order_u = smoothness
         spline.resolution_u = spline_resolution
-        spline.points.add(len(points))
-        for i in range(len(points)):
+        spline.points.add(len(points) - len(spline.points))
+        for i in range(len(spline.points)):
             spline.points[i].co = Vector((*points[i], 1))
     
     def update(self, _old_values):
@@ -209,7 +209,7 @@ class Line(Node):
         spline = line_data.splines[0]
         spline.order_u = smoothness
         spline.resolution_u = spline_resolution
-        for i in range(len(points)):
+        for i in range(len(spline.points)):
             spline.points[i].co = Vector((*points[i], 1))
 
 class GeometricPrimitive(Node):
