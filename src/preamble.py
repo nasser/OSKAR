@@ -113,7 +113,7 @@ class Transform(Node):
         self.ref.rotation_euler = osk_radians(r)
         self.ref.scale = Vector(s)
 
-def points_to_curve(points, spline_type="NURBS", smoothness=2, resolution=64, name="Curve", closed=False, data=None):
+def osk_points_to_curve(points, spline_type="NURBS", smoothness=2, resolution=64, name="Curve", closed=False, data=None):
     if data is None:
         data = bpy.data.curves.new("Line", 'CURVE')
         spline = data.splines.new(spline_type)
@@ -136,12 +136,12 @@ class Ribbon(Node):
     
     def mount(self, root):
         points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
-        line_data = points_to_curve(points, "POLY", smoothness, spline_resolution)
+        line_data = osk_points_to_curve(points, "POLY", smoothness, spline_resolution)
         self.ref = bpy.data.objects.new("Line", line_data)
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
 
-        cross_section_data = points_to_curve(cross_section, "NURBS", smoothness, spline_resolution, closed=True)
+        cross_section_data = osk_points_to_curve(cross_section, "NURBS", smoothness, spline_resolution, closed=True)
         cross_section_object = bpy.data.objects.new("CrossSection", cross_section_data)
         cross_section_object.hide_render = True
         cross_section_object.hide_viewport = True
@@ -160,10 +160,10 @@ class Ribbon(Node):
         old_points, old_cross_section, old_start, old_stop, old_smoothness, old_bevel_resolution, old_spline_resolution = old_values
 
         if points != old_points:
-            points_to_curve(points, "POLY", smoothness, spline_resolution, data=self.ref.data)
+            osk_points_to_curve(points, "POLY", smoothness, spline_resolution, data=self.ref.data)
         
         if cross_section != old_cross_section:
-            points_to_curve(cross_section, "NURBS", smoothness, spline_resolution, closed=True, data=self.ref.data.bevel_object.data)
+            osk_points_to_curve(cross_section, "NURBS", smoothness, spline_resolution, closed=True, data=self.ref.data.bevel_object.data)
 
         self.ref.data.bevel_resolution = bevel_resolution
         self.ref.data.bevel_factor_start = start
