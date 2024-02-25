@@ -149,6 +149,7 @@ class Ribbon(Node):
 
         line_data.bevel_mode = 'OBJECT'
         line_data.dimensions = '3D'
+        line_data.twist_mode = 'TANGENT'
         line_data.use_fill_caps = True
         line_data.bevel_resolution = bevel_resolution
         line_data.bevel_object = cross_section_object
