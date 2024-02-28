@@ -130,12 +130,13 @@ def osk_points_to_curve(points, spline_type="NURBS", smoothness=2, resolution=64
     return data
 
 class Ribbon(Node):
-    def __init__(self, _pt, _context, points=[], cross_section=[], start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
-        values = (points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution)
+    def __init__(self, _pt, context, points=[], cross_section=[], start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64, twist_mode='TANGENT', twist_smooth=0.0):
+        values = (context, points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth)
         super().__init__(values)
     
     def mount(self, root):
-        points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
+        context, points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth = self.values
+        material, visible = context
         line_data = osk_points_to_curve(points, "POLY", smoothness, spline_resolution)
         self.ref = bpy.data.objects.new("Line", line_data)
         self.ref.parent = root
@@ -149,16 +150,21 @@ class Ribbon(Node):
 
         line_data.bevel_mode = 'OBJECT'
         line_data.dimensions = '3D'
-        line_data.twist_mode = 'TANGENT'
+        line_data.twist_mode = twist_mode
+        line_data.twist_smooth = twist_smooth
         line_data.use_fill_caps = True
         line_data.bevel_resolution = bevel_resolution
         line_data.bevel_object = cross_section_object
         line_data.bevel_factor_start = start
         line_data.bevel_factor_end = stop
 
+        osk_set_visible(self.ref, visible)
+        self.ref.data.materials.append(osk_make_material(material))
+
     def update(self, old_values):
-        points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
-        old_points, old_cross_section, old_start, old_stop, old_smoothness, old_bevel_resolution, old_spline_resolution = old_values
+        context, points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth = self.values
+        material, visible = context
+        old_context, old_points, old_cross_section, old_start, old_stop, old_smoothness, old_bevel_resolution, old_spline_resolution, old_twist_mode, old_twist_smooth = old_values
 
         if points != old_points:
             osk_points_to_curve(points, "POLY", smoothness, spline_resolution, data=self.ref.data)
@@ -169,6 +175,13 @@ class Ribbon(Node):
         self.ref.data.bevel_resolution = bevel_resolution
         self.ref.data.bevel_factor_start = start
         self.ref.data.bevel_factor_end = stop
+
+        if material is not None:
+            h, s, v = material
+            color = Color()
+            color.hsv = (h, s, v)
+            self.ref.material_slots[self.ref.active_material_index].material.node_tree.nodes["Diffuse BSDF"].inputs[0].default_value = (color.r, color.g, color.b, 1)
+        osk_set_visible(self.ref, visible)
 
 class Line(Node):
     def __init__(self, _pt, _context, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
