@@ -402,6 +402,31 @@ class Primitive(Node):
         self.ref = self.function(pt, *args)
         self.ref.parent = root
 
+class Text(Node):
+    def __init__(self, _pt, _context, body, font=None, extrude=0, offset=0, align_x='LEFT', align_y='TOP_BASELINE', bevel_depth=0):
+        super().__init__((body, font, extrude, offset, align_x, align_y, bevel_depth))
+    
+    def mount(self, root):
+        text_data = bpy.data.curves.new(type="FONT", name="Text")
+        self.ref = bpy.data.objects.new("Text", text_data)
+        self.ref.parent = root
+        bpy.context.collection.objects.link(self.ref)
+        self.update(self.values)
+    
+    def update(self, values):
+        (body, font, extrude, offset, align_x, align_y, bevel_depth) = self.values
+        self.ref.data.body = body
+        self.ref.data.extrude = extrude
+        self.ref.data.offset = offset
+        self.ref.data.align_x = align_x
+        self.ref.data.align_y = align_y
+        self.ref.data.bevel_depth = bevel_depth
+        if font is not None:
+            font_data = bpy.data.fonts.load(font)
+            self.ref.data.font = font_data
+        else:
+            self.ref.data.font = bpy.data.fonts['Bfont Regular']
+
 osk_primitives = set()
 
 def osk_is_primitive(func):
