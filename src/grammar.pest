@@ -28,8 +28,8 @@ transform_arguments = _{ "(" ~ transform_argument ~ "," ~ transform_argument ~ "
 transform_argument  = _{ expression_simple | blank_argument }
 blank_argument      = { WHITESPACE* }
 
-expression_simple   = { py_string | py_subscript | py_attribute | py_list | py_dictionary | py_binary | py_parenthetical | py_call | py_unary | py_literal | py_identifier }
-expression          = { (py_string | py_subscript | py_attribute | py_list | py_dictionary | py_binary | py_parenthetical | py_call | py_unary | py_assign | py_literal | py_identifier) ~ py_terminator? }
+expression_simple   = { py_binary | py_string | py_subscript | py_attribute | py_list | py_dictionary | py_parenthetical | py_call | py_unary | py_literal | py_identifier }
+expression          = { (py_binary | py_string | py_subscript | py_attribute | py_list | py_dictionary | py_parenthetical | py_call | py_unary | py_assign | py_literal | py_identifier) ~ py_terminator? }
 py_terminator       = _{ ";" | "\n" }
 
 py_parenthetical    = _{ "(" ~ expression ~ ")"}
