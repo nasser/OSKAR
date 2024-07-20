@@ -294,7 +294,7 @@ class Sphere(GeometricPrimitive):
     def __init__(self, _pt, _context):
         super().__init__("Sphere", _context)
 
-def disc(radius=1, angle_start=0, angle_end=360, radius_inner=0, resolution=32) -> list[tuple[float, float, float]]:
+def disc(radius_outer=1, radius_inner=0, angle_start=0, angle_end=360, resolution=32) -> list[tuple[float, float, float]]:
     """
     Generate a list of points representing a disc in 2D space
     """
@@ -304,8 +304,8 @@ def disc(radius=1, angle_start=0, angle_end=360, radius_inner=0, resolution=32) 
     if radius_inner == 0:
         points.append((0, 0, 0))
     for i in range(resolution+1):
-        x = cos(angle_start + i * step) * radius
-        y = sin(angle_start + i * step) * radius
+        x = cos(angle_start + i * step) * radius_outer
+        y = sin(angle_start + i * step) * radius_outer
         points.append((x, y, 0))
     if radius_inner != 0:
         for i in reversed(range(resolution+1)):
