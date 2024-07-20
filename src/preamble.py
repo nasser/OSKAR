@@ -521,6 +521,7 @@ def osk_initialize_material(object, material):
     object.data.materials.append(material)
     object.material_slots[object.active_material_index].link = 'OBJECT'
 
+osk_default_material = (0.5, 0, 1)
 
 def osk_initialize_scene():
     for obj in bpy.data.objects:
@@ -540,7 +541,7 @@ def osk_initialize_scene():
     bpy.context.object.hide_render = True
     bpy.context.object.hide_viewport = True
     
-    default_material = osk_make_material((0.5, 0, 1))
+    default_material = osk_make_material(osk_default_material)
     osk_initialize_material(bpy.data.objects['Cube'], default_material)
     osk_initialize_material(bpy.data.objects['Plane'], default_material)
     osk_initialize_material(bpy.data.objects['Cylinder'], default_material)
@@ -555,7 +556,7 @@ def osk_enable_camera_view():
 
 def osk_film(picture, frames):
     # (material, visible)
-    root_context = ((0.5, 1, 1), True)
+    root_context = (osk_default_material, True)
     osk_initialize_scene()
 
     vscene = VirtualScene(picture(0, root_context))
