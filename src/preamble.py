@@ -8,13 +8,22 @@ import math
 from mathutils import Vector, Euler, Color
 import time
 
-def sin(x):
+def sin(x:float) -> float:
+    """
+    Calculate the sine of an angle given in degrees.
+    """
     return math.sin(math.radians(x))
 
-def cos(x):
+def cos(x:float) -> float:
+    """
+    Calculate the cosine of an angle given in degrees.
+    """
     return math.cos(math.radians(x))
 
-def look_at(camera, target):
+def look_at(camera:tuple[float,float,float], target:tuple[float,float,float]) -> tuple[float,float,float]:
+    """
+    Calculate the Euler angles for a camera to look at a target point.
+    """
     camera_location = Vector(camera)
     target_location = Vector(target)
     
@@ -130,6 +139,9 @@ def osk_points_to_curve(points, spline_type="NURBS", smoothness=2, resolution=64
     return data
 
 class Ribbon(Node):
+    """
+    Ribbon primitive
+    """
     def __init__(self, _pt, context, points=[], cross_section=[], start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64, twist_mode='TANGENT', twist_smooth=0.0):
         values = (context, points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth)
         super().__init__(values)
@@ -184,6 +196,9 @@ class Ribbon(Node):
         osk_set_visible(self.ref, visible)
 
 class Line(Node):
+    """
+    Line primitive
+    """
     def __init__(self, _pt, _context, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
         values = (points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution)
         super().__init__(values)
@@ -205,12 +220,12 @@ class Line(Node):
         line_data.bevel_factor_end = stop
 
         spline = line_data.splines.new('NURBS')
-        spline.use_endpoint_u = True
-        spline.order_u = smoothness
-        spline.resolution_u = spline_resolution
         spline.points.add(len(points) - len(spline.points))
         for i in range(len(spline.points)):
             spline.points[i].co = Vector((*points[i], 1))
+        spline.use_endpoint_u = True
+        spline.order_u = smoothness
+        spline.resolution_u = spline_resolution
     
     def update(self, _old_values):
         points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
@@ -221,10 +236,10 @@ class Line(Node):
         line_data.bevel_factor_start = start
         line_data.bevel_factor_end = stop
         spline = line_data.splines[0]
-        spline.order_u = smoothness
-        spline.resolution_u = spline_resolution
         for i in range(len(spline.points)):
             spline.points[i].co = Vector((*points[i], 1))
+        spline.order_u = smoothness
+        spline.resolution_u = spline_resolution
 
 class GeometricPrimitive(Node):
     def __init__(self, type, context):
@@ -252,22 +267,37 @@ class GeometricPrimitive(Node):
         osk_set_visible(self.ref, visible)
 
 class Cube(GeometricPrimitive):
-    def __init__(self, _pt, context):
-        super().__init__("Cube", context)
+    """
+    Cube primitive
+    """
+    def __init__(self, _pt, _context):
+        super().__init__("Cube", _context)
 
 class Square(GeometricPrimitive):
-    def __init__(self, _pt, context):
-        super().__init__("Plane", context)
+    """
+    Square primitive
+    """
+    def __init__(self, _pt, _context):
+        super().__init__("Plane", _context)
 
 class Cylinder(GeometricPrimitive):
-    def __init__(self, _pt, context):
-        super().__init__("Cylinder", context)
+    """
+    Cylinder primitive
+    """
+    def __init__(self, _pt, _context):
+        super().__init__("Cylinder", _context)
 
 class Sphere(GeometricPrimitive):
-    def __init__(self, _pt, context):
-        super().__init__("Sphere", context)
+    """
+    Sphere primitive
+    """
+    def __init__(self, _pt, _context):
+        super().__init__("Sphere", _context)
 
-def disc(radius=1, angle_start=0, angle_end=360, radius_inner=0, resolution=32):
+def disc(radius=1, angle_start=0, angle_end=360, radius_inner=0, resolution=32) -> list[tuple[float, float, float]]:
+    """
+    Generate a list of points representing a disc in 2D space
+    """
     points = []
     angle_diff = angle_end - angle_start
     step = angle_diff / resolution
@@ -285,7 +315,10 @@ def disc(radius=1, angle_start=0, angle_end=360, radius_inner=0, resolution=32):
     return points
 
 class Polygon(Node):
-    def __init__(self, _pt, _context, points):
+    """
+    Polygon primitive
+    """
+    def __init__(self, _pt, _context, points:list[tuple[float, float, float]]):
         super().__init__(points)
     
     def mount(self, root):
@@ -302,13 +335,16 @@ class Polygon(Node):
         bm.free()
 
 class Prism(Node):
-    def __init__(self, _pt, _context, points, depth=1):
+    """
+    Prism primitive
+    """
+    def __init__(self, _pt, _context, points:list[tuple[float, float, float]], depth=1):
         values = (points, depth)
         super().__init__(values)
     
     def mount(self, root):
-        mesh = bpy.data.meshes.new(name="Polygon")
-        self.ref = bpy.data.objects.new("Polygon", mesh)
+        mesh = bpy.data.meshes.new(name="Prism")
+        self.ref = bpy.data.objects.new("Prism", mesh)
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
         self.update()
@@ -337,6 +373,11 @@ class Prism(Node):
 
 
 class Camera(Node):
+    """
+    Camera primitive
+
+    TODO document the default orientation of camera
+    """
     def __init__(self, _pt, _context, type='PERSP', size=None):
         self.type = type
         super().__init__(size)
@@ -360,8 +401,11 @@ class Camera(Node):
 
 
 class Light(Node):
-    def __init__(self, _pt, context, type='POINT', energy=1000):
-        material, visible = context
+    """
+    Light primitive
+    """
+    def __init__(self, _pt, _context, type='POINT', energy=1000):
+        material, visible = _context
         self.type = type
         values = (material, energy)
         super().__init__(values)
@@ -403,7 +447,10 @@ class Primitive(Node):
         self.ref.parent = root
 
 class Text(Node):
-    def __init__(self, _pt, _context, body, font=None, extrude=0, offset=0, align_x='LEFT', align_y='TOP_BASELINE', bevel_depth=0):
+    """
+    Text primitive
+    """
+    def __init__(self, _pt, _context, body:str, font=None, extrude=0, offset=0, align_x='LEFT', align_y='TOP_BASELINE', bevel_depth=0):
         super().__init__((body, font, extrude, offset, align_x, align_y, bevel_depth))
     
     def mount(self, root):
@@ -433,10 +480,13 @@ def osk_is_primitive(func):
     return func.__name__ in osk_primitives
 
 def primitive(func):
+    """
+    A decorator to mark a function as an Oskar primitive.
+    """
     osk_primitives.add(func.__name__)
     return func
 
-def reconcile(old, new):
+def osk_reconcile(old, new):
     if type(old) != type(new):
         root = old.parent.ref if old.parent is not None else None
         old.unmount()
@@ -449,7 +499,7 @@ def reconcile(old, new):
         new_children = len(new.children)
         shortest_children = min(old_children, new_children)
         for i in range(0, shortest_children):
-            reconcile(old.children[i], new.children[i])
+            osk_reconcile(old.children[i], new.children[i])
         if old_children > new_children:
             for i in range(shortest_children, old_children):
                 old.children[i].unmount()
@@ -464,7 +514,7 @@ class VirtualScene:
         node.mount(None)
     
     def update(self, node):
-        reconcile(self.current, node)
+        osk_reconcile(self.current, node)
         self.current = node
 
 def osk_initialize_material(object, material):
