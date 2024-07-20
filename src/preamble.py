@@ -47,6 +47,8 @@ def osk_set_visible(obj, state):
     obj.hide_render = not state
 
 def osk_make_material(data):
+    if not isinstance(data, tuple):
+        return data
     h, s, v = data
     color = Color()
     color.hsv = (h, s, v)
