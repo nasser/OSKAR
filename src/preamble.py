@@ -47,8 +47,6 @@ def osk_set_visible(obj, state):
     obj.hide_render = not state
 
 def osk_make_material(data):
-    if not isinstance(data, tuple):
-        return data
     h, s, v = data
     color = Color()
     color.hsv = (h, s, v)
@@ -557,7 +555,7 @@ def osk_enable_camera_view():
 
 def osk_film(picture, frames):
     # (material, visible)
-    root_context = (osk_make_material((0.5, 1, 1)), True)
+    root_context = ((0.5, 1, 1), True)
     osk_initialize_scene()
 
     vscene = VirtualScene(picture(0, root_context))
