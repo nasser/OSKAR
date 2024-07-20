@@ -555,7 +555,7 @@ def osk_enable_camera_view():
 
 def osk_film(picture, frames):
     # (material, visible)
-    root_context = (None, True)
+    root_context = (osk_make_material((0.5, 1, 1)), True)
     osk_initialize_scene()
 
     vscene = VirtualScene(picture(0, root_context))
