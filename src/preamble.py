@@ -128,14 +128,14 @@ def osk_points_to_curve(points, spline_type="NURBS", smoothness=2, resolution=64
         spline = data.splines.new(spline_type)
     else:
         spline = data.splines[0]
-    spline.use_endpoint_u = True
-    spline.use_cyclic_u = closed
-    spline.order_u = smoothness
-    spline.resolution_u = resolution
     if spline.point_count_u < len(points):
         spline.points.add(len(points) - spline.point_count_u)
     for i in range(len(points)):
         spline.points[i].co = Vector((*points[i], 1))
+    spline.use_endpoint_u = True
+    spline.use_cyclic_u = closed
+    spline.order_u = smoothness
+    spline.resolution_u = resolution
     return data
 
 class Ribbon(Node):
