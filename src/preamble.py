@@ -540,7 +540,7 @@ def osk_initialize_scene():
     bpy.context.object.hide_render = True
     bpy.context.object.hide_viewport = True
     
-    default_material = osk_make_material((0.5, 1, 1))
+    default_material = osk_make_material((0.5, 0, 1))
     osk_initialize_material(bpy.data.objects['Cube'], default_material)
     osk_initialize_material(bpy.data.objects['Plane'], default_material)
     osk_initialize_material(bpy.data.objects['Cylinder'], default_material)
