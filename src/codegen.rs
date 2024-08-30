@@ -225,8 +225,8 @@ fn codegen_standard_picture_transforms(
             )
         ),
     ];
-    if let Some(statements) = &xform_set.statements {
-        loop_body.append(&mut statements.clone());
+    if let Some(statement) = &xform_set.statement {
+        loop_body.push(statement.clone());
     }
 
     loop_body.push(assign!(
@@ -456,7 +456,7 @@ pub fn codegen_toplevel(tl: &osk::TopLevel) -> py::AST {
             vec![codegen_standard_picture(p)]
         }
         osk::TopLevel::Definition(osk::Definition::Selection(p)) => vec![codegen_picture_list(p)],
-        osk::TopLevel::PythonCodeBlock(b) => b.lines.clone(),
+        osk::TopLevel::PythonCodeBlock(b) => vec![b.lines.clone()],
         osk::TopLevel::Skip => vec![],
     };
     module!(module_body)

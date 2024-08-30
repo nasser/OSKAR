@@ -41,7 +41,7 @@ fn get_line_col(source: &str, offset: usize) -> Option<(usize, usize)> {
 }
 
 /// Format an analysis error
-/// 
+///
 /// File and source are not known to us in this module and must be passed in
 /// from the top level of the compiler
 pub fn format_error(error: &Error, file: &str, source: &str) -> String {
@@ -120,7 +120,7 @@ pub enum Csg {
 #[derive(Debug)]
 pub struct TransformSet {
     pub num_pics: NumPics,
-    pub statements: Option<Vec<py::AST>>,
+    pub statement: Option<py::AST>,
     pub transforms: Vec<Transform>,
     // pub iteration: bool,
 }
@@ -162,7 +162,7 @@ pub enum Parameter {
 
 #[derive(Debug)]
 pub struct PythonCodeBlock {
-    pub lines: Vec<py::AST>,
+    pub lines: py::AST,
 }
 
 fn error_from_span(span: &Span, message: &str) -> Error {
@@ -176,11 +176,24 @@ fn error_from_span(span: &Span, message: &str) -> Error {
 }
 
 fn error_from_python(span: &Span, error: &py::Error) -> Error {
+    println!("error_from_python {}", error.offset);
     Error {
         line_offset: error.line,
         column_offset: error.offset,
-        message: error.message.to_owned(),
+        message: format!("python error: {}", error.message),
         span: (span.start(), span.end()),
+    }
+}
+
+fn error_from_python_trimmed(code:&str, trimmed:&str, error: &py::Error) -> Error {
+    let line_original = code.lines().collect::<Vec<&str>>()[error.line-1];
+    let line_trimmed = trimmed.lines().collect::<Vec<&str>>()[error.line-1];
+    let indent = line_original.len() - line_trimmed.len();
+    Error {
+        line_offset: error.line,
+        column_offset: error.offset + indent,
+        message: format!("python error: {}", error.message),
+        span: (0, 0),
     }
 }
 
@@ -188,15 +201,26 @@ fn fake_span(code: &str) -> Span {
     Span::new(code, 0, code.len()).unwrap()
 }
 
-pub fn to_python_statements(codes: &Vec<Span>) -> Result<Vec<py::AST>, Error> {
-    let mut statements = vec![];
-    for code in codes {
-        match py::parse_exec(code.as_str()) {
-            Ok(v) => statements.push(v),
-            Err(e) => return Err(error_from_python(code, &e)),
-        }
+fn trim_lines(s: &str) -> String {
+    s.lines()
+        .map(|l| l.trim_start())
+        .collect::<Vec<&str>>()
+        .join("\n")
+}
+
+pub fn to_python_statement_trimmed(code: &str, span: &Span) -> Result<py::AST, Error> {
+    let trimmed = trim_lines(code);
+    match py::parse_exec(&trimmed) {
+        Ok(v) => Ok(v),
+        Err(e) => Err(error_from_python_trimmed(code, &trimmed, &e)),
     }
-    Ok(statements)
+}
+
+pub fn to_python_statement(code: &str, span: &Span) -> Result<py::AST, Error> {
+    match py::parse_exec(code) {
+        Ok(v) => Ok(v),
+        Err(e) => Err(error_from_python(span, &e)),
+    }
 }
 
 pub fn to_python_expression(code: &Span) -> Result<py::AST, Error> {
@@ -213,7 +237,7 @@ fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Vec<Parameter>, Error> 
             let mut params = vec![];
             for p in param_pairs {
                 match p.as_rule() {
-                    Rule::expression_simple => {
+                    Rule::expression => {
                         params.push(Parameter::Simple(to_python_expression(&p.as_span())?))
                     }
                     Rule::named_expression => {
@@ -239,7 +263,7 @@ fn analyze_parameters_names(pairs: &mut Pairs<Rule>) -> Result<Vec<String>, Erro
             let mut params = vec![];
             for p in param_pairs {
                 match p.as_rule() {
-                    Rule::expression_simple => params.push(p.as_str().to_owned()),
+                    Rule::expression => params.push(p.as_str().to_owned()),
                     Rule::named_expression => {
                         return Err(error_from_span(
                             &p.as_span(),
@@ -305,12 +329,9 @@ fn analyze_film(pairs: &mut Pairs<Rule>) -> Result<Film, Error> {
 }
 
 fn analyze_python_code(pairs: &mut Pairs<Rule>) -> Result<PythonCodeBlock, Error> {
-    let mut lines = vec![];
-    for pair in pairs {
-        lines.push(pair.as_span());
-    }
+    let pair = pairs.next().unwrap();
     Ok(PythonCodeBlock {
-        lines: to_python_statements(&lines)?,
+        lines: to_python_statement(&pair.clone().as_str(), &pair.as_span())?,
     })
 }
 
@@ -346,7 +367,7 @@ fn analyze_num_pics(pairs: &mut Pairs<Rule>) -> Result<NumPics, Error> {
 fn analyze_transform_argument(pair: Pair<Rule>) -> Option<Span> {
     match pair.as_rule() {
         Rule::blank_argument => None,
-        Rule::expression_simple => Some(pair.as_span()),
+        Rule::expression => Some(pair.as_span()),
         _ => unreachable!(),
     }
 }
@@ -395,17 +416,15 @@ fn analyze_transforms(pairs: &mut Pairs<Rule>) -> Result<Vec<Transform>, Error> 
     Ok(transforms)
 }
 
-fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Result<Option<Vec<py::AST>>, Error> {
+fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Result<Option<py::AST>, Error> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::transform_expressions => {
-            let spans = pairs
-                .next()
-                .unwrap()
-                .into_inner()
-                .map(|p| p.as_span())
-                .collect::<Vec<Span>>();
-            let statements = to_python_statements(&spans)?;
-            Ok(Some(statements))
+            // we parse it with the surrounding parens because that makes the
+            // grammar a lot simpler. we strip them off here.
+            let pair = pairs.next().unwrap();
+            let code = pair.clone().as_str().trim_start_matches("(").trim_end_matches(")");
+            let statement = to_python_statement_trimmed(&code, &pair.clone().into_inner().next().unwrap().as_span())?;
+            Ok(Some(statement))
         }
         _ => Ok(None),
     }
@@ -413,12 +432,12 @@ fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Result<Option<Vec<py
 
 fn analyze_transform_set(pairs: &mut Pairs<Rule>) -> Result<TransformSet, Error> {
     let num_pics = analyze_num_pics(&mut pairs.next().unwrap().into_inner())?;
-    let statements = analyze_transform_expression(pairs)?;
+    let statement = analyze_transform_expression(pairs)?;
     let transforms = analyze_transforms(pairs)?;
 
     Ok(TransformSet {
         num_pics,
-        statements,
+        statement,
         transforms,
     })
 }

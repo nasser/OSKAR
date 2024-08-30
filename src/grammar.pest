@@ -15,8 +15,8 @@ picture_definition  = { standard_picture | picture_function | picture_selection 
 standard_picture    = { identifier ~ empty_paramaters? ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)+ }
 basis_picture       = { identifier ~ parameters? }
 transform_set       = { "[" ~ num_pics ~ transform_expressions? ~ transform* ~ "]" }
-transform_expressions = { "(" ~ expression+ ~ ") "}
-num_pics            = { "{" ~ expression_simple ~ (";" ~ num_pics_identifier)? ~ (";" ~ num_pics_identifier)? ~ "}" }
+transform_expressions = { "(" ~ WHITESPACE* ~ (expression | ",")* ~ ")" }
+num_pics            = { "{" ~ expression ~ (";" ~ num_pics_identifier)? ~ (";" ~ num_pics_identifier)? ~ "}" }
 num_pics_identifier = _{ identifier | blank_argument }
 transform           = _{ scale_transform | translate_transform | rotate_transform | color_transform }
 scale_transform     = { "*" ~ transform_arguments }
@@ -25,40 +25,16 @@ rotate_transform    = { "@" ~ transform_arguments }
 color_transform     = { "^" ~ transform_arguments }
 
 transform_arguments = _{ "(" ~ transform_argument ~ "," ~ transform_argument ~ "," ~ transform_argument ~ ")" }
-transform_argument  = _{ expression_simple | blank_argument }
+transform_argument  = _{ expression | blank_argument }
 blank_argument      = { WHITESPACE* }
 
-expression_simple   = { py_binary | py_string | py_subscript | py_attribute | py_list | py_dictionary | py_parenthetical | py_call | py_unary | py_literal | py_identifier }
-expression          = { (py_binary | py_string | py_subscript | py_attribute | py_list | py_dictionary | py_parenthetical | py_call | py_unary | py_assign | py_literal | py_identifier) ~ py_terminator? }
-py_terminator       = _{ ";" | "\n" }
-
-py_parenthetical    = _{ "(" ~ expression ~ ")"}
-py_list             = _{ "[" ~ expression? ~ ("," ~ expression)* ~ "]"}
-py_dictionary       = _{ "{" ~ py_entry? ~ ("," ~ py_entry)* ~ "}"}
-py_entry            = _{ py_string ~ ":" ~ expression }
-py_subscript        = _{ py_term ~ ("[" ~ expression_simple ~ "]")+ }
-py_attribute        = _{ py_term ~ ("." ~ expression_simple)+ }
-
-py_string           = _{ py_string_single | py_string_double }
-py_string_single    = _{ "'" ~ (!"'" ~ ANY)* ~ "'" }
-py_string_double    = _{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
-
-py_assign           = _{ identifier ~( "," ~ identifier)* ~ py_op_assign ~ expression }
-py_op_assign        = _{ "=" | "+=" | "-=" | "*=" | "@=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | "**=" | "//=" }
-
-py_binary           = _{ py_term ~ (py_op_binary ~ expression_simple)+ }
-py_term             = _{ py_string | py_list | py_dictionary | py_parenthetical | py_call | py_literal | py_identifier }
-py_op_binary        = _{ "+" | "-" | "*" | "/" | "//" | "%" | "@" }
-
-py_unary            = _{ py_op_unary ~ expression }
-py_op_unary         = _{ "+" | "-" | "~" }
-
-py_call             = _{ identifier ~ "(" ~ py_argument? ~ ( "," ~ py_argument )* ~ ")" }
-py_argument         = _{ py_named_argument | expression }
-py_named_argument   = _{ identifier ~ "=" ~ expression }
-
-py_literal          = _{ literal }
-py_identifier       = _{ identifier }
+// balanced delimiters, commas only in delimiters
+expression_unnested = _{ (!("(" | ")" | "{" | "}" | "[" | "]" | ",") ~ ANY)+ }
+expression_round    = _{ "(" ~ (expression | ",")* ~ ")" } 
+expression_square   = _{ "[" ~ (expression | ",")* ~ "]" } 
+expression_curly    = _{ "{" ~ (expression | ",")* ~ "}" } 
+expression          = { (expression_unnested | expression_round | expression_square | expression_curly)+ }
+expression_non_atomic = !{ expression}
 
 picture_function    = { identifier ~ parameters? ~ "<<" ~ basis_picture ~ transform_set* }
 
@@ -72,8 +48,8 @@ csg_operand         = _{ identifier ~ parameters? }
 csg_operator        = { "+" | "-" | "n" | "&" }
 
 parameters          = { "(" ~ parameter? ~ ("," ~ parameter)* ~ ")" }
-parameter           = _{ named_expression | expression_simple }
-named_expression    = { identifier ~ "=" ~ expression_simple }
+parameter           = _{ named_expression | expression }
+named_expression    = { identifier ~ "=" ~ expression }
 empty_paramaters    = _{ "(" ~ ")" }
 
 literal             = { number }
