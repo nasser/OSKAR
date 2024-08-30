@@ -11,3 +11,4 @@ Cargo.lock
 **/*.rs.bk
 .ionide
 .vscode
+__pycache__
