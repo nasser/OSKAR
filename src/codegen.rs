@@ -205,13 +205,14 @@ fn codegen_standard_picture_transforms(
     xform_sets: &Vec<osk::TransformSet>,
     i: usize,
     scope: (py::AST, py::AST, py::AST),
-) -> py::AST {
+) -> Vec<py::AST> {
     let (parent_material_name, parent_visible_name, parent_xform_name) = scope;
     let material_name = fresh_name("material");
     let visible_name = fresh_name("visible");
     let xform_name = fresh_name("xform");
     let context_name = fresh_name("context");
     let basis_name = fresh_name("basis");
+    let num_pics_name = fresh_name("num_pics");
     let xform_set = &xform_sets[xform_sets.len() - 1 - i];
     let num_pics_value = &xform_set.num_pics.value;
     let mut loop_body = vec![
@@ -221,7 +222,8 @@ fn codegen_standard_picture_transforms(
             bin_op!(
                 Div,
                 name!(&xform_set.num_pics.nth_identifier),
-                num_pics_value.clone()
+                // num_pics_value.clone()
+                num_pics_name.clone()
             )
         ),
     ];
@@ -289,7 +291,7 @@ fn codegen_standard_picture_transforms(
     ));
 
     if i < xform_sets.len() - 1 {
-        loop_body.push(codegen_standard_picture_transforms(
+        loop_body.append(&mut codegen_standard_picture_transforms(
             picture,
             xform_sets,
             i + 1,
@@ -337,11 +339,14 @@ fn codegen_standard_picture_transforms(
         ));
     }
 
-    for_loop!(
-        name!(&xform_set.num_pics.nth_identifier),
-        call!(name!("range"), vec![xform_set.num_pics.value.clone()]),
-        loop_body
-    )
+    vec![
+        assign!([num_pics_name.clone()], xform_set.num_pics.value.clone()),
+        for_loop!(
+            name!(&xform_set.num_pics.nth_identifier),
+            call!(name!("range"), vec![num_pics_name.clone()]),
+            loop_body
+        ),
+    ]
 }
 
 fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
@@ -362,7 +367,7 @@ fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
         call!(name!("Transform"), [constant!(&picture.identifier)])
     ));
 
-    let body_specific = match picture.operations {
+    let mut body_specific = match picture.operations {
         osk::Operations::TransformSet(ref xforms) => codegen_standard_picture_transforms(
             &picture,
             xforms,
@@ -372,7 +377,7 @@ fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
         osk::Operations::Csg(_) => todo!(),
     };
 
-    body.push(body_specific);
+    body.append(&mut body_specific);
 
     body.push(ret!(root_name));
 
