@@ -208,7 +208,7 @@ fn trim_lines(s: &str) -> String {
         .join("\n")
 }
 
-pub fn to_python_statement_trimmed(code: &str, span: &Span) -> Result<py::AST, Error> {
+pub fn to_python_statement_trimmed(code: &str) -> Result<py::AST, Error> {
     let trimmed = trim_lines(code);
     match py::parse_exec(&trimmed) {
         Ok(v) => Ok(v),
@@ -423,7 +423,7 @@ fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Result<Option<py::AS
             // grammar a lot simpler. we strip them off here.
             let pair = pairs.next().unwrap();
             let code = pair.clone().as_str().trim_start_matches("(").trim_end_matches(")");
-            let statement = to_python_statement_trimmed(&code, &pair.clone().into_inner().next().unwrap().as_span())?;
+            let statement = to_python_statement_trimmed(&code)?;
             Ok(Some(statement))
         }
         _ => Ok(None),
