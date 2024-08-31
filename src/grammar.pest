@@ -34,7 +34,6 @@ expression_round    = _{ "(" ~ (expression | ",")* ~ ")" }
 expression_square   = _{ "[" ~ (expression | ",")* ~ "]" } 
 expression_curly    = _{ "{" ~ (expression | ",")* ~ "}" } 
 expression          = { (expression_unnested | expression_round | expression_square | expression_curly)+ }
-expression_non_atomic = !{ expression}
 
 picture_function    = { identifier ~ parameters? ~ "<<" ~ basis_picture ~ transform_set* }
 

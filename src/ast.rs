@@ -422,7 +422,10 @@ fn analyze_transform_expression(pairs: &mut Pairs<Rule>) -> Result<Option<py::AS
             // we parse it with the surrounding parens because that makes the
             // grammar a lot simpler. we strip them off here.
             let pair = pairs.next().unwrap();
-            let code = pair.clone().as_str().trim_start_matches("(").trim_end_matches(")");
+            let mut chars = pair.clone().as_str().chars();
+            chars.next();
+            chars.next_back();
+            let code = chars.as_str();
             let statement = to_python_statement_trimmed(&code)?;
             Ok(Some(statement))
         }
