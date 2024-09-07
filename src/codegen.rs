@@ -214,7 +214,6 @@ fn codegen_standard_picture_transforms(
     let basis_name = fresh_name("basis");
     let num_pics_name = fresh_name("num_pics");
     let xform_set = &xform_sets[xform_sets.len() - 1 - i];
-    let num_pics_value = &xform_set.num_pics.value;
     let mut loop_body = vec![
         // pct = nth / num_pics
         assign!(
