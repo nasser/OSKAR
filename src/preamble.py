@@ -8,6 +8,8 @@ import math
 from mathutils import Vector, Euler, Color
 import time
 
+osk_default_material = (0.5, 0, 1)
+
 class DynamicVar:
     def __init__(self, default):
         self.stack = [default]
@@ -36,7 +38,7 @@ class DynamicVar:
         return self
 
 __time__ = DynamicVar(0)
-__material__ = DynamicVar(None)
+__material__ = DynamicVar(osk_default_material)
 __visible__ = DynamicVar(True)
 
 def sin(x:float) -> float:
@@ -556,8 +558,6 @@ class VirtualScene:
 def osk_initialize_material(object, material):
     object.data.materials.append(material)
     object.material_slots[object.active_material_index].link = 'OBJECT'
-
-osk_default_material = (0.5, 0, 1)
 
 def osk_initialize_scene():
     for obj in bpy.data.objects:
