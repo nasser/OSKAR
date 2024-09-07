@@ -8,6 +8,37 @@ import math
 from mathutils import Vector, Euler, Color
 import time
 
+class DynamicVar:
+    def __init__(self, default):
+        self.stack = [default]
+    
+    @property
+    def value(self):
+        return self.stack[-1]
+
+    def bind(self, value):
+        self.stack.append(value)
+    
+    def unbind(self):
+        if len(self.stack) > 1:
+            self.stack.pop()
+        else:
+            raise RuntimeError("Cannot unbind default value")
+
+    def __enter__(self):
+        return self.value
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.unbind()
+
+    def __call__(self, value):
+        self.bind(value)
+        return self
+
+__time__ = DynamicVar(0)
+__material__ = DynamicVar(None)
+__visible__ = DynamicVar(True)
+
 def sin(x:float) -> float:
     """
     Calculate the sine of an angle given in degrees.
@@ -142,13 +173,14 @@ class Ribbon(Node):
     """
     Ribbon primitive
     """
-    def __init__(self, _pt, context, points=[], cross_section=[], start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64, twist_mode='TANGENT', twist_smooth=0.0):
-        values = (context, points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth)
+    def __init__(self, points=[], cross_section=[], start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64, twist_mode='TANGENT', twist_smooth=0.0):
+        values = (points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth)
         super().__init__(values)
     
     def mount(self, root):
-        context, points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth = self.values
-        material, visible = context
+        points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth = self.values
+        material = __material__.value
+        visible = __visible__.value
         line_data = osk_points_to_curve(points, "POLY", smoothness, spline_resolution)
         self.ref = bpy.data.objects.new("Line", line_data)
         self.ref.parent = root
@@ -174,9 +206,10 @@ class Ribbon(Node):
         self.ref.data.materials.append(osk_make_material(material))
 
     def update(self, old_values):
-        context, points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth = self.values
-        material, visible = context
-        old_context, old_points, old_cross_section, old_start, old_stop, old_smoothness, old_bevel_resolution, old_spline_resolution, old_twist_mode, old_twist_smooth = old_values
+        points, cross_section, start, stop, smoothness, bevel_resolution, spline_resolution, twist_mode, twist_smooth = self.values
+        material = __material__.value
+        visible = __visible__.value
+        old_points, old_cross_section, old_start, old_stop, old_smoothness, old_bevel_resolution, old_spline_resolution, old_twist_mode, old_twist_smooth = old_values
 
         if points != old_points:
             osk_points_to_curve(points, "POLY", smoothness, spline_resolution, data=self.ref.data)
@@ -199,7 +232,7 @@ class Line(Node):
     """
     Line primitive
     """
-    def __init__(self, _pt, _context, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
+    def __init__(self, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
         values = (points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution)
         super().__init__(values)
     
@@ -242,9 +275,11 @@ class Line(Node):
         spline.resolution_u = spline_resolution
 
 class GeometricPrimitive(Node):
-    def __init__(self, type, context):
+    def __init__(self, type):
         self.type = type
-        super().__init__(context)
+        material = __material__.value
+        visible = __visible__.value
+        super().__init__((material, visible))
     
     def mount(self, root):
         geo_data = bpy.data.meshes[self.type]
@@ -270,29 +305,29 @@ class Cube(GeometricPrimitive):
     """
     Cube primitive
     """
-    def __init__(self, _pt, _context):
-        super().__init__("Cube", _context)
+    def __init__(self):
+        super().__init__("Cube")
 
 class Square(GeometricPrimitive):
     """
     Square primitive
     """
-    def __init__(self, _pt, _context):
-        super().__init__("Plane", _context)
+    def __init__(self):
+        super().__init__("Plane")
 
 class Cylinder(GeometricPrimitive):
     """
     Cylinder primitive
     """
-    def __init__(self, _pt, _context):
-        super().__init__("Cylinder", _context)
+    def __init__(self):
+        super().__init__("Cylinder")
 
 class Sphere(GeometricPrimitive):
     """
     Sphere primitive
     """
-    def __init__(self, _pt, _context):
-        super().__init__("Sphere", _context)
+    def __init__(self):
+        super().__init__("Sphere")
 
 def disc(radius_outer=1, radius_inner=0, angle_start=0, angle_end=360, resolution=32) -> list[tuple[float, float, float]]:
     """
@@ -318,7 +353,7 @@ class Polygon(Node):
     """
     Polygon primitive
     """
-    def __init__(self, _pt, _context, points:list[tuple[float, float, float]]):
+    def __init__(self, points:list[tuple[float, float, float]]):
         super().__init__(points)
     
     def mount(self, root):
@@ -338,7 +373,7 @@ class Prism(Node):
     """
     Prism primitive
     """
-    def __init__(self, _pt, _context, points:list[tuple[float, float, float]], depth=1):
+    def __init__(self, points:list[tuple[float, float, float]], depth=1):
         values = (points, depth)
         super().__init__(values)
     
@@ -378,7 +413,7 @@ class Camera(Node):
 
     TODO document the default orientation of camera
     """
-    def __init__(self, _pt, _context, type='PERSP', size=None):
+    def __init__(self, type='PERSP', size=None):
         self.type = type
         super().__init__(size)
 
@@ -404,8 +439,8 @@ class Light(Node):
     """
     Light primitive
     """
-    def __init__(self, _pt, _context, type='POINT', energy=1000):
-        material, visible = _context
+    def __init__(self, type='POINT', energy=1000):
+        material = __material__.value
         self.type = type
         values = (material, energy)
         super().__init__(values)
@@ -432,7 +467,8 @@ class Light(Node):
 
 class Primitive(Node):
     __slots__ = "function"
-    def __init__(self, function, pt, context, *args):
+    def __init__(self, function, *args):
+        pt = __time__.value
         self.function = function
         super().__init__((pt, args))
     
@@ -450,7 +486,7 @@ class Text(Node):
     """
     Text primitive
     """
-    def __init__(self, _pt, _context, body:str, font=None, extrude=0, offset=0, align_x='LEFT', align_y='TOP_BASELINE', bevel_depth=0):
+    def __init__(self, body:str, font=None, extrude=0, offset=0, align_x='LEFT', align_y='TOP_BASELINE', bevel_depth=0):
         super().__init__((body, font, extrude, offset, align_x, align_y, bevel_depth))
     
     def mount(self, root):
@@ -556,15 +592,15 @@ def osk_enable_camera_view():
 
 def osk_film(picture, frames):
     # (material, visible)
-    root_context = (osk_default_material, True)
     osk_initialize_scene()
 
-    vscene = VirtualScene(picture(0, root_context))
+    vscene = VirtualScene(picture())
     osk_enable_camera_view()
 
     def frame_change(scene):
         t = (scene.frame_current % scene.frame_end) / scene.frame_end
-        vscene.update(picture(t, root_context))
+        with __time__(t):
+            vscene.update(picture())
 
     bpy.app.handlers.frame_change_post.clear()    
     bpy.app.handlers.frame_change_post.append(frame_change)

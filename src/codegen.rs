@@ -67,6 +67,12 @@ macro_rules! if_stmt {
     };
 }
 
+macro_rules! with_stmt {
+    ($items:expr, $body:expr) => {
+        ast!(With, $items, $body)
+    };
+}
+
 macro_rules! call {
     ($target:expr) => {
         ast!(Call, $target, empty_list!(), empty_list!())
@@ -204,15 +210,11 @@ fn codegen_standard_picture_transforms(
     picture: &osk::Picture,
     xform_sets: &Vec<osk::TransformSet>,
     i: usize,
-    scope: (py::AST, py::AST, py::AST),
+    parent_xform_name: py::AST,
 ) -> Vec<py::AST> {
-    let (parent_material_name, parent_visible_name, parent_xform_name) = scope;
-    let material_name = fresh_name("material");
-    let visible_name = fresh_name("visible");
-    let xform_name = fresh_name("xform");
-    let context_name = fresh_name("context");
-    let basis_name = fresh_name("basis");
-    let num_pics_name = fresh_name("num_pics");
+    let xform_name = fresh_name("_xform");
+    let basis_name = name!(picture.basis.identifier.clone());
+    let num_pics_name = fresh_name("_num_pics");
     let xform_set = &xform_sets[xform_sets.len() - 1 - i];
     let mut loop_body = vec![
         // pct = nth / num_pics
@@ -230,34 +232,28 @@ fn codegen_standard_picture_transforms(
         loop_body.push(statement.clone());
     }
 
-    loop_body.push(assign!(
-        [material_name.clone()],
-        parent_material_name.clone()
-    ));
-    loop_body.push(assign!([visible_name.clone()], parent_visible_name.clone()));
-
     let mut translates = vec![];
     let mut rotates = vec![];
     let mut scales = vec![];
+    let mut dynamic_bindings = vec![call!(name!("__time__"), [name!("t")])];
     for transform in &xform_set.transforms {
         match transform {
             osk::Transform::Scale((x, y, z)) => {
-                let scale_name = fresh_name("scale");
+                let scale_name = fresh_name("_scale");
                 loop_body.push(assign!(
                     [scale_name.clone()],
                     tuple!(vec![x.clone(), y.clone(), z.clone()])
                 ));
-                loop_body.push(assign!(
-                    [visible_name.clone()],
-                    bool_op!(
+                dynamic_bindings.push(
+                    call!(name!("__visible__"), 
+                    [bool_op!(
                         And,
-                        visible_name.clone(),
+                        attribute!(name!("__visible__"), "value"),
                         unary_op!(
                             Not,
                             call!(name!("osk_razor_thin"), vec![scale_name.clone()])
                         )
-                    )
-                ));
+                    )]));
                 scales.push(scale_name)
             }
             osk::Transform::Translate((x, y, z)) => {
@@ -266,10 +262,9 @@ fn codegen_standard_picture_transforms(
             osk::Transform::Rotate((x, y, z)) => {
                 rotates.push(tuple!(vec![x.clone(), y.clone(), z.clone()]))
             }
-            osk::Transform::Color((h, s, v)) => loop_body.push(assign!(
-                [material_name.clone()],
-                tuple!(vec![h.clone(), s.clone(), v.clone()])
-            )),
+            osk::Transform::Color((h, s, v)) => {
+                dynamic_bindings.push(call!(name!("__material__"), [tuple!(vec![h.clone(), s.clone(), v.clone()])]))
+            }
         }
     }
 
@@ -294,10 +289,10 @@ fn codegen_standard_picture_transforms(
             picture,
             xform_sets,
             i + 1,
-            (material_name, visible_name, xform_name),
+            xform_name,
         ))
     } else {
-        let mut basis_args = vec![name!("t"), context_name.clone()];
+        let mut basis_args = vec![];
         let mut basis_kw_args = vec![];
         for p in &picture.basis.parameters {
             match p {
@@ -308,33 +303,26 @@ fn codegen_standard_picture_transforms(
             }
         }
 
-        loop_body.push(assign!(
-            [context_name.clone()],
-            tuple!(vec![material_name.clone(), visible_name.clone()])
-        ));
-
-        loop_body.push(assign!(
-            [basis_name.clone()],
-            name!(&picture.basis.identifier)
-        ));
-
         let mut basis_args_custom_primitive = vec![basis_name.clone()];
         basis_args_custom_primitive.append(&mut basis_args.clone());
 
-        loop_body.push(if_stmt!(
-            call!(name!("osk_is_primitive"), [basis_name.clone()]),
-            [expr!(call!(
-                attribute!(xform_name.clone(), "add_child"),
-                vec![call_kw!(
-                    name!("Primitive"),
-                    basis_args_custom_primitive,
-                    basis_kw_args.clone()
-                )]
-            ))],
-            [expr!(call!(
-                attribute!(xform_name, "add_child"),
-                vec![call_kw!(basis_name, basis_args, basis_kw_args)]
-            ))]
+        loop_body.push(with_stmt!(
+            dynamic_bindings,
+            [if_stmt!(
+                call!(name!("osk_is_primitive"), [basis_name.clone()]),
+                [expr!(call!(
+                    attribute!(xform_name.clone(), "add_child"),
+                    vec![call_kw!(
+                        name!("Primitive"),
+                        basis_args_custom_primitive,
+                        basis_kw_args.clone()
+                    )]
+                ))],
+                [expr!(call!(
+                    attribute!(xform_name, "add_child"),
+                    vec![call_kw!(basis_name, basis_args, basis_kw_args)]
+                ))]
+            )]
         ));
     }
 
@@ -349,16 +337,10 @@ fn codegen_standard_picture_transforms(
 }
 
 fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
-    let material_name = fresh_name("material");
-    let visible_name = fresh_name("visible");
-    let root_name = fresh_name("root");
+    let root_name = fresh_name("_root");
 
     let mut body = vec![
-        assign!([name!("t")], name!("pt")),
-        assign!(
-            [tuple!([material_name.clone(), visible_name.clone()])],
-            name!("_context")
-        ),
+        assign!([name!("t")], attribute!(name!("__time__"), "value")),
     ];
 
     body.push(assign!(
@@ -367,12 +349,9 @@ fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
     ));
 
     let mut body_specific = match picture.operations {
-        osk::Operations::TransformSet(ref xforms) => codegen_standard_picture_transforms(
-            &picture,
-            xforms,
-            0,
-            (material_name, visible_name, root_name.clone()),
-        ),
+        osk::Operations::TransformSet(ref xforms) => {
+            codegen_standard_picture_transforms(&picture, xforms, 0, root_name.clone())
+        }
         osk::Operations::Csg(_) => todo!(),
     };
 
@@ -380,7 +359,7 @@ fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
 
     body.push(ret!(root_name));
 
-    let mut parameters = vec![arg!("pt"), arg!("_context")];
+    let mut parameters = vec![];
     for p in &picture.parameters {
         parameters.push(arg!(p.clone()));
     }
@@ -401,7 +380,7 @@ fn codegen_picture_list(picture_list: &osk::PictureList) -> py::AST {
                     osk::Parameter::KeyValue(k, v) => keyword!(k.clone(), v.clone()),
                 })
                 .collect();
-            let mut args = vec![arg!("pt"), arg!("_context")];
+            let mut args = vec![];
             args.append(&mut user_args);
             call!(name!(&i.identifier), args)
         })
@@ -445,7 +424,7 @@ fn codegen_picture_list(picture_list: &osk::PictureList) -> py::AST {
 
     funcdef!(
         &picture_list.identifier,
-        args_defaults!([arg!("pt"), arg!("_context"), arg!("i")], [name!("None")]),
+        args_defaults!([arg!("i")], [name!("None")]),
         body
     )
 }
