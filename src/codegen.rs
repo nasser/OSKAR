@@ -340,7 +340,8 @@ fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
     let root_name = fresh_name("_root");
 
     let mut body = vec![
-        assign!([name!("t")], attribute!(name!("__time__"), "value")),
+        assign!([name!("pt")], attribute!(name!("__time__"), "value")),
+        assign!([name!("t")], name!("pt")),
     ];
 
     body.push(assign!(
