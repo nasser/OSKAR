@@ -15,7 +15,7 @@ picture_definition  = { standard_picture | picture_function | picture_selection 
 standard_picture    = { identifier ~ empty_paramaters? ~ "<<" ~ basis_picture ~ (transform_set | csg_operation)+ }
 basis_picture       = { identifier ~ parameters? }
 transform_set       = { "[" ~ num_pics ~ transform_expressions? ~ transform* ~ "]" }
-transform_expressions = { "(" ~ WHITESPACE* ~ (expression | ",")* ~ ")" }
+transform_expressions = { "(" ~ WHITESPACE* ~ (expression | "," | ";")* ~ ")" }
 num_pics            = { "{" ~ expression ~ (";" ~ num_pics_identifier)? ~ (";" ~ num_pics_identifier)? ~ "}" }
 num_pics_identifier = _{ identifier | blank_argument }
 transform           = _{ scale_transform | translate_transform | rotate_transform | color_transform }
@@ -29,10 +29,10 @@ transform_argument  = _{ expression | blank_argument }
 blank_argument      = { WHITESPACE* }
 
 // balanced delimiters, commas only in delimiters
-expression_unnested = _{ (!("(" | ")" | "{" | "}" | "[" | "]" | ",") ~ ANY)+ }
-expression_round    = _{ "(" ~ (expression | ",")* ~ ")" } 
-expression_square   = _{ "[" ~ (expression | ",")* ~ "]" } 
-expression_curly    = _{ "{" ~ (expression | ",")* ~ "}" } 
+expression_unnested = _{ (!("(" | ")" | "{" | "}" | "[" | "]" | "," | ";") ~ ANY)+ }
+expression_round    = _{ "(" ~ (expression | "," | ";")* ~ ")" } 
+expression_square   = _{ "[" ~ (expression | "," | ";")* ~ "]" } 
+expression_curly    = _{ "{" ~ (expression | "," | ";")* ~ "}" } 
 expression          = { (expression_unnested | expression_round | expression_square | expression_curly)+ }
 
 picture_function    = { identifier ~ parameters? ~ "<<" ~ basis_picture ~ transform_set* }
