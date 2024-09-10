@@ -371,23 +371,7 @@ fn codegen_standard_picture(picture: &osk::Picture) -> py::AST {
 }
 
 fn codegen_picture_list(picture_list: &osk::PictureList) -> py::AST {
-    let children: Vec<py::AST> = picture_list
-        .invokes
-        .iter()
-        .map(|i| {
-            let mut user_args: Vec<py::AST> = i
-                .parameters
-                .iter()
-                .map(|p| match p {
-                    osk::Parameter::Simple(v) => v.clone(),
-                    osk::Parameter::KeyValue(k, v) => keyword!(k.clone(), v.clone()),
-                })
-                .collect();
-            let mut args = vec![];
-            args.append(&mut user_args);
-            call!(name!(&i.identifier), args)
-        })
-        .collect();
+    let children: Vec<py::AST> = picture_list.elements.iter().map(|i| name!(i)).collect();
 
     let mut none_body = vec![assign!(
         [name!("_root")],
@@ -402,7 +386,7 @@ fn codegen_picture_list(picture_list: &osk::PictureList) -> py::AST {
             .map(|child| {
                 expr!(call!(
                     attribute!(name!("_root"), "add_child"),
-                    [child.clone()]
+                    [call!(child.clone())]
                 ))
             })
             .collect(),

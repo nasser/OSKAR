@@ -92,7 +92,7 @@ pub enum Definition {
 #[derive(Debug)]
 pub struct PictureList {
     pub identifier: String,
-    pub invokes: Vec<Invoke>,
+    pub elements: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -230,7 +230,7 @@ pub fn to_python_expression(code: &Span) -> Result<py::AST, Error> {
     }
 }
 
-fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Vec<Parameter>, Error> {
+fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Option<Vec<Parameter>>, Error> {
     match pairs.peek() {
         Some(x) if x.as_rule() == Rule::parameters => {
             let param_pairs = pairs.next().unwrap().into_inner();
@@ -250,9 +250,9 @@ fn analyze_parameters(pairs: &mut Pairs<Rule>) -> Result<Vec<Parameter>, Error> 
                     _ => unreachable!(),
                 }
             }
-            Ok(params)
+            Ok(Some(params))
         }
-        _ => Ok(vec![]),
+        _ => Ok(Some(vec![])),
     }
 }
 
@@ -281,7 +281,7 @@ fn analyze_parameters_names(pairs: &mut Pairs<Rule>) -> Result<Vec<String>, Erro
 
 fn analyze_invoke(pairs: &mut Pairs<Rule>) -> Result<Invoke, Error> {
     let identifier = pairs.next().unwrap().as_str().to_string();
-    let parameters = analyze_parameters(pairs)?;
+    let parameters = analyze_parameters(pairs)?.unwrap_or(vec![]);
     Ok(Invoke {
         identifier,
         parameters,
@@ -514,16 +514,14 @@ fn analyze_picture(pairs: &mut Pairs<Rule>) -> Result<Picture, Error> {
 
 fn analyze_picture_list(pairs: &mut Pairs<Rule>) -> Result<PictureList, Error> {
     let identifier = pairs.next().unwrap().as_str().to_string();
-
-    let mut invokes: Vec<Invoke> = vec![];
-    invokes.push(analyze_invoke(pairs)?);
+    let mut elements: Vec<String> = vec![];
     while pairs.peek().is_some() {
-        invokes.push(analyze_invoke(pairs)?)
+        elements.push(pairs.next().unwrap().as_str().to_owned())
     }
 
     Ok(PictureList {
         identifier,
-        invokes,
+        elements,
     })
 }
 
