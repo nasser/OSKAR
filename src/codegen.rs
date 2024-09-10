@@ -244,8 +244,8 @@ fn codegen_standard_picture_transforms(
                     [scale_name.clone()],
                     tuple!(vec![x.clone(), y.clone(), z.clone()])
                 ));
-                dynamic_bindings.push(
-                    call!(name!("__visible__"), 
+                dynamic_bindings.push(call!(
+                    name!("__visible__"),
                     [bool_op!(
                         And,
                         attribute!(name!("__visible__"), "value"),
@@ -253,7 +253,8 @@ fn codegen_standard_picture_transforms(
                             Not,
                             call!(name!("osk_razor_thin"), vec![scale_name.clone()])
                         )
-                    )]));
+                    )]
+                ));
                 scales.push(scale_name)
             }
             osk::Transform::Translate((x, y, z)) => {
@@ -262,9 +263,10 @@ fn codegen_standard_picture_transforms(
             osk::Transform::Rotate((x, y, z)) => {
                 rotates.push(tuple!(vec![x.clone(), y.clone(), z.clone()]))
             }
-            osk::Transform::Color((h, s, v)) => {
-                dynamic_bindings.push(call!(name!("__material__"), [tuple!(vec![h.clone(), s.clone(), v.clone()])]))
-            }
+            osk::Transform::Color((h, s, v)) => dynamic_bindings.push(call!(
+                name!("__material__"),
+                [tuple!(vec![h.clone(), s.clone(), v.clone()])]
+            )),
         }
     }
 

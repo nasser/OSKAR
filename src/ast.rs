@@ -185,9 +185,9 @@ fn error_from_python(span: &Span, error: &py::Error) -> Error {
     }
 }
 
-fn error_from_python_trimmed(code:&str, trimmed:&str, error: &py::Error) -> Error {
-    let line_original = code.lines().collect::<Vec<&str>>()[error.line-1];
-    let line_trimmed = trimmed.lines().collect::<Vec<&str>>()[error.line-1];
+fn error_from_python_trimmed(code: &str, trimmed: &str, error: &py::Error) -> Error {
+    let line_original = code.lines().collect::<Vec<&str>>()[error.line - 1];
+    let line_trimmed = trimmed.lines().collect::<Vec<&str>>()[error.line - 1];
     let indent = line_original.len() - line_trimmed.len();
     Error {
         line_offset: error.line,
