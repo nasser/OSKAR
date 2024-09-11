@@ -322,7 +322,7 @@ fn codegen_standard_picture_transforms(
                 ))],
                 [expr!(call!(
                     attribute!(xform_name, "add_child"),
-                    vec![call_kw!(basis_name, basis_args, basis_kw_args)]
+                    vec![call!(name!("osk_ensure_evaluated"), [call_kw!(basis_name, basis_args, basis_kw_args)])]
                 ))]
             )]
         ));

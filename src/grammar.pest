@@ -40,7 +40,7 @@ picture_function    = { identifier ~ parameters? ~ "<<" ~ basis_picture ~ transf
 picture_selection   = { identifier ~ empty_paramaters? ~ "<<" ~ picture_list }
 
 picture_list        = _{ "[" ~ picture_list_item? ~ ("," ~ picture_list_item)* ~ "]" }
-picture_list_item   = _{ identifier ~ parameters? }
+picture_list_item   = _{ identifier }
 
 csg_operation       = { csg_operator ~ csg_operand }
 csg_operand         = _{ identifier ~ parameters? }

@@ -524,6 +524,12 @@ def primitive(func):
     osk_primitives.add(func.__name__)
     return func
 
+def osk_ensure_evaluated(val):
+    if callable(val):
+        return val()
+    else:
+        return val
+
 def osk_reconcile(old, new):
     if type(old) != type(new):
         root = old.parent.ref if old.parent is not None else None
