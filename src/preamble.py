@@ -8,6 +8,37 @@ import math
 from mathutils import Vector, Euler, Color
 import time
 
+osk_slider_names = []
+
+osk_on_slider_update = None
+
+def osk_slider_update(self, context):
+    osk_on_slider_update()
+
+class OskSliders(object):
+    def new(self, name, **kwargs):
+        osk_slider_names.append(name)
+        setattr(bpy.types.Scene, name, bpy.props.FloatProperty(update=osk_slider_update, **kwargs))
+    
+    def __getattr__(self, name):
+        return getattr(bpy.context.scene, name)
+
+class OskarSlidersPanel(bpy.types.Panel):
+    bl_label = "Sliders"
+    bl_idname = "OBJECT_PT_OSKAR"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'OSKAR'
+
+    def draw(self, context):
+        layout = self.layout
+        for name in osk_slider_names:
+            layout.prop(context.scene, name)
+
+bpy.utils.register_class(OskarSlidersPanel)
+
+Sliders = OskSliders()
+
 osk_default_material = (0.5, 0, 1)
 
 class DynamicVar:
@@ -613,5 +644,7 @@ def osk_film(picture, frames):
 
     bpy.context.scene.frame_end = frames
     frame_change(bpy.context.scene)
+    global osk_on_slider_update
+    osk_on_slider_update = lambda: frame_change(bpy.context.scene)
 
 ### user code
