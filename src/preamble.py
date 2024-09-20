@@ -8,7 +8,7 @@ import math
 from mathutils import Vector, Euler, Color
 import time
 
-osk_slider_names = []
+osk_slider_identifiers = []
 
 osk_on_slider_update = None
 
@@ -16,12 +16,12 @@ def osk_slider_update(self, context):
     osk_on_slider_update()
 
 class OskSliders(object):
-    def new(self, name, **kwargs):
-        osk_slider_names.append(name)
-        setattr(bpy.types.Scene, name, bpy.props.FloatProperty(update=osk_slider_update, **kwargs))
+    def new(self, identifier, **kwargs):
+        osk_slider_identifiers.append(identifier)
+        setattr(bpy.types.Scene, identifier, bpy.props.FloatProperty(update=osk_slider_update, **kwargs))
     
-    def __getattr__(self, name):
-        return getattr(bpy.context.scene, name)
+    def __getattr__(self, identifier):
+        return getattr(bpy.context.scene, identifier)
 
 class OskarSlidersPanel(bpy.types.Panel):
     bl_label = "Sliders"
