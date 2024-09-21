@@ -32,8 +32,8 @@ class OskarSlidersPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        for name in osk_slider_names:
-            layout.prop(context.scene, name)
+        for identifier in osk_slider_identifiers:
+            layout.prop(context.scene, identifier)
 
 bpy.utils.register_class(OskarSlidersPanel)
 
