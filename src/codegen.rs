@@ -235,7 +235,11 @@ fn codegen_standard_picture_transforms(
     let mut translates = vec![];
     let mut rotates = vec![];
     let mut scales = vec![];
-    let mut dynamic_bindings = vec![call!(name!("__time__"), [name!("t")])];
+    let mut dynamic_bindings = if i < xform_sets.len() - 1 {
+        vec![]
+    } else {
+        vec![call!(name!("__time__"), [name!("t")])]
+    };
     for transform in &xform_set.transforms {
         match transform {
             osk::Transform::Scale((x, y, z)) => {
@@ -287,12 +291,19 @@ fn codegen_standard_picture_transforms(
     ));
 
     if i < xform_sets.len() - 1 {
-        loop_body.append(&mut codegen_standard_picture_transforms(
-            picture,
-            xform_sets,
-            i + 1,
-            xform_name,
-        ))
+        if dynamic_bindings.len() > 0 {
+            loop_body.push(with_stmt!(
+                dynamic_bindings,
+                codegen_standard_picture_transforms(picture, xform_sets, i + 1, xform_name)
+            ))
+        } else {
+            loop_body.append(&mut codegen_standard_picture_transforms(
+                picture,
+                xform_sets,
+                i + 1,
+                xform_name,
+            ))
+        }
     } else {
         let mut basis_args = vec![];
         let mut basis_kw_args = vec![];
@@ -322,7 +333,10 @@ fn codegen_standard_picture_transforms(
                 ))],
                 [expr!(call!(
                     attribute!(xform_name, "add_child"),
-                    vec![call!(name!("osk_ensure_evaluated"), [call_kw!(basis_name, basis_args, basis_kw_args)])]
+                    vec![call!(
+                        name!("osk_ensure_evaluated"),
+                        [call_kw!(basis_name, basis_args, basis_kw_args)]
+                    )]
                 ))]
             )]
         ));
