@@ -72,6 +72,13 @@ __time__ = DynamicVar(0)
 __material__ = DynamicVar(osk_default_material)
 __visible__ = DynamicVar(True)
 
+def osk_snap_viewports_to_camera():
+    for area in bpy.context.screen.areas:
+        if area.type == 'VIEW_3D':
+            for space in area.spaces:
+                if space.type == 'VIEW_3D':
+                    space.region_3d.view_perspective = 'CAMERA'
+
 def sin(x:float) -> float:
     """
     Calculate the sine of an angle given in degrees.
@@ -646,5 +653,6 @@ def osk_film(picture, frames):
     frame_change(bpy.context.scene)
     global osk_on_slider_update
     osk_on_slider_update = lambda: frame_change(bpy.context.scene)
+    osk_snap_viewports_to_camera()
 
 ### user code
