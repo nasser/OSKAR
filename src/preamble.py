@@ -22,6 +22,9 @@ class OskSliders(object):
     
     def __getattr__(self, identifier):
         return getattr(bpy.context.scene, identifier)
+    
+    def __setattr__(self, identifier, value):
+        setattr(bpy.context.scene, identifier, value)
 
 class OskarSlidersPanel(bpy.types.Panel):
     bl_label = "Sliders"
