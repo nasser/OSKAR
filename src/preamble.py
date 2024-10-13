@@ -13,7 +13,8 @@ osk_slider_identifiers = []
 osk_on_slider_update = None
 
 def osk_slider_update(self, context):
-    osk_on_slider_update()
+    if osk_slider_update is not None:
+        osk_on_slider_update()
 
 class OskSliders(object):
     def new(self, identifier, **kwargs):
