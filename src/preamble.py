@@ -277,16 +277,17 @@ class Line(Node):
     Line primitive
     """
     def __init__(self, points=[], thickness=0.05, start=0, stop=1, smoothness=2, bevel_resolution=16, spline_resolution=64):
-        values = (points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution)
+        material = __material__.value
+        visible = __visible__.value
+        values = (points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution, material, visible)
         super().__init__(values)
     
     def mount(self, root):
-        points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
+        points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution, material, visible = self.values
         line_data = bpy.data.curves.new("Line", 'CURVE')
         self.ref = bpy.data.objects.new("Line", line_data)
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
-        osk_set_visible(self.ref, True)
 
         line_data.bevel_mode = 'ROUND'
         line_data.dimensions = '3D'
@@ -303,9 +304,14 @@ class Line(Node):
         spline.use_endpoint_u = True
         spline.order_u = smoothness
         spline.resolution_u = spline_resolution
+        osk_set_visible(self.ref, visible)
+        if material is not None:
+            self.ref.material_slots[self.ref.active_material_index].link = 'OBJECT'
+            self.ref.material_slots[self.ref.active_material_index].material = osk_make_material(material)
+
     
     def update(self, _old_values):
-        points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution = self.values
+        points, thickness, start, stop, smoothness, bevel_resolution, spline_resolution, material, visible = self.values
         line_data = self.ref.data
         osk_set_visible(self.ref, True) # not clear why we have to do this
         line_data.bevel_resolution = bevel_resolution
@@ -317,6 +323,12 @@ class Line(Node):
             spline.points[i].co = Vector((*points[i], 1))
         spline.order_u = smoothness
         spline.resolution_u = spline_resolution
+        if material is not None:
+            h, s, v = material
+            color = Color()
+            color.hsv = (h, s, v)
+            self.ref.material_slots[self.ref.active_material_index].material.node_tree.nodes["Diffuse BSDF"].inputs[0].default_value = (color.r, color.g, color.b, 1)
+        osk_set_visible(self.ref, visible)
 
 class GeometricPrimitive(Node):
     def __init__(self, type):
