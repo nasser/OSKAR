@@ -305,9 +305,7 @@ class Line(Node):
         spline.order_u = smoothness
         spline.resolution_u = spline_resolution
         osk_set_visible(self.ref, visible)
-        if material is not None:
-            self.ref.material_slots[self.ref.active_material_index].link = 'OBJECT'
-            self.ref.material_slots[self.ref.active_material_index].material = osk_make_material(material)
+        self.ref.data.materials.append(osk_make_material(material))
 
     
     def update(self, _old_values):
