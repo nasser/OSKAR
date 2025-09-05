@@ -1,11 +1,9 @@
 [tasks.linux]
 command = "cargo"
-env = { "PYO3_CROSS_PYTHON_VERSION" = "3.11" }
 args = ["build", "--release"]
 
 [tasks.windows]
 command = "cargo"
-env = { "PYO3_CROSS_PYTHON_VERSION" = "3.11" }
 args = ["build", "--target", "x86_64-pc-windows-gnu", "--release"]
 
 [tasks.all]

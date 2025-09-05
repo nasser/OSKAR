@@ -17,4 +17,4 @@ lazy_static = "1.4.0"
 
 [dependencies.pyo3]
 version = "0.20.0"
-features = ["auto-initialize", "generate-import-lib"]
+features = ["auto-initialize", "generate-import-lib", "abi3-py38"]
