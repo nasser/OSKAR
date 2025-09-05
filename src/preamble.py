@@ -226,7 +226,7 @@ class Ribbon(Node):
         material = __material__.value
         visible = __visible__.value
         line_data = osk_points_to_curve(points, "POLY", smoothness, spline_resolution)
-        self.ref = bpy.data.objects.new("Line", line_data)
+        self.ref = bpy.data.objects.new("Ribbon", line_data)
         self.ref.parent = root
         bpy.context.collection.objects.link(self.ref)
 
